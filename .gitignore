@@ -1,0 +1,40 @@
+# ---- Kredensial & rahasia -------------------------------------
+.env
+.env.*
+!.env.example
+*.pgpass
+.pgpass
+secrets/
+
+# ---- Artefak database -----------------------------------------
+*.dump
+*.backup
+*.bak
+*.sql.gz
+backups/
+dumps/
+pgdata/
+*.log
+
+# ---- DBeaver / pgAdmin ----------------------------------------
+.dbeaver/
+*.dbeaver-data-sources.xml
+credentials-config.json
+pgadmin4.db
+*.pgerd
+
+# ---- Python (untuk Checkpoint 2) ------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+
+# ---- Editor & OS ----------------------------------------------
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
