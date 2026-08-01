@@ -11,18 +11,20 @@ tabel PostgreSQL, data contoh, dan kumpulan query untuk entitas inti toko: `user
 
 ## Daftar isi
 
-1. [Struktur proyek](#struktur-proyek)
-2. [Diagram relasi (ERD)](#diagram-relasi-erd)
-3. [Ringkasan skema](#ringkasan-skema)
-4. [Prasyarat](#1-prasyarat)
-5. [Instalasi PostgreSQL & password postgres](#2-instalasi-postgresql--password-postgres)
-6. [Verifikasi instalasi](#3-verifikasi-instalasi)
-7. [Membuat database revoshop_db](#4-membuat-database-revoshop_db)
-8. [Menjalankan Schema.sql dan Seed.sql](#5-menjalankan-schemasql-dan-seedsql)
-9. [Verifikasi data](#6-verifikasi-data)
-10. [Menjalankan Queries.sql](#7-menjalankan-queriessql)
-11. [Reset database](#reset-database)
-12. [Keputusan desain](#keputusan-desain)
+- [RevoShop — Database (Checkpoint 1)](#revoshop--database-checkpoint-1)
+  - [Daftar isi](#daftar-isi)
+  - [Struktur proyek](#struktur-proyek)
+  - [Diagram relasi (ERD)](#diagram-relasi-erd)
+  - [Ringkasan skema](#ringkasan-skema)
+  - [1. Prasyarat](#1-prasyarat)
+  - [2. Instalasi PostgreSQL \& password postgres](#2-instalasi-postgresql--password-postgres)
+  - [3. Verifikasi instalasi](#3-verifikasi-instalasi)
+  - [4. Membuat database revoshop\_db](#4-membuat-database-revoshop_db)
+  - [5. Menjalankan Schema.sql dan Seed.sql](#5-menjalankan-schemasql-dan-seedsql)
+  - [6. Verifikasi data](#6-verifikasi-data)
+  - [7. Menjalankan Queries.sql](#7-menjalankan-queriessql)
+  - [Reset database](#reset-database)
+  - [Keputusan desain](#keputusan-desain)
 
 ---
 
