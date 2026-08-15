@@ -7,6 +7,7 @@ class User(db.Model):
 
     user_id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(100), nullable=False)
+    role = db.Column(db.String(20), nullable=False, server_default="Customer")
     email = db.Column(db.String(255), nullable=False, unique=True)
     password_hash = db.Column(db.String(255), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
@@ -18,6 +19,7 @@ class User(db.Model):
         return {
             "user_id": self.user_id,
             "full_name": self.full_name,
+            "role": self.role,
             "email": self.email,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,

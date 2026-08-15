@@ -66,6 +66,7 @@ def update_user(user_id):
         user = db.get_or_404(User, user_id)
         data = request.get_json()
         user.full_name = data.get("full_name", user.full_name)
+        user.role = data.get("role", user.role)
         user.email = data.get("email", user.email)
         user.is_active = data.get("is_active", user.is_active)
         db.session.commit()
