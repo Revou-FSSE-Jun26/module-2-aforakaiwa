@@ -46,6 +46,7 @@ def create_user():
             full_name=data["full_name"],
             email=data["email"],
             password_hash=data["password_hash"],
+            role=data.get("role", "customer"),
         )
 
         db.session.add(user)
