@@ -13,6 +13,107 @@ def home():
     return jsonify({"message": "Welcome to the Revou Shop", "status": "ok"})
 
 
+# ---------- Warm-up (hardcoded seed data) ----------
+warmup_bp = Blueprint("warmup", __name__, url_prefix="/warmup")
+
+
+@warmup_bp.route("", methods=["GET"])
+def warmup():
+    """Returns hardcoded sample data based on Seed.sql for testing without DB."""
+    data = {
+        "users": [
+            {"user_id": 1, "username": "andi_pratama", "full_name": "Andi Pratama", "role": "Customer", "email": "andi.pratama@gmail.com", "is_active": True, "created_at": "2025-11-03T09:12:00"},
+            {"user_id": 2, "username": "siti_nurhaliza", "full_name": "Siti Nurhaliza", "role": "Customer", "email": "siti.nurhaliza@yahoo.com", "is_active": True, "created_at": "2025-12-14T18:40:00"},
+            {"user_id": 3, "username": "budi_santoso", "full_name": "Budi Santoso", "role": "Customer", "email": "budi.santoso@outlook.com", "is_active": True, "created_at": "2026-01-08T07:55:00"},
+            {"user_id": 4, "username": "rina_wijaya", "full_name": "Rina Wijaya", "role": "Customer", "email": "rina.wijaya@gmail.com", "is_active": True, "created_at": "2026-01-22T13:05:00"},
+            {"user_id": 5, "username": "kevin_tan", "full_name": "Kevin Tanuwijaya", "role": "Customer", "email": "kevin.tan@revoshop.dev", "is_active": True, "created_at": "2026-02-11T20:31:00"},
+            {"user_id": 6, "username": "dewi_lestari", "full_name": "Dewi Lestari", "role": "Customer", "email": "dewi.lestari@gmail.com", "is_active": True, "created_at": "2026-03-02T11:17:00"},
+            {"user_id": 7, "username": "fajar_ramadhan", "full_name": "Fajar Ramadhan", "role": "Customer", "email": "fajar.ramadhan@proton.me", "is_active": True, "created_at": "2026-04-19T16:48:00"},
+            {"user_id": 8, "username": "maria_s", "full_name": "Maria Simanjuntak", "role": "Customer", "email": "maria.simanjuntak@gmail.com", "is_active": False, "created_at": "2026-05-27T08:03:00"},
+        ],
+        "categories": [
+            {"category_id": 1, "category_name": "Electronics", "description": "Gadgets, computer peripherals and audio gear."},
+            {"category_id": 2, "category_name": "Fashion", "description": "Clothing, footwear and everyday bags."},
+            {"category_id": 3, "category_name": "Home & Living", "description": "Furniture, kitchenware and home lighting."},
+            {"category_id": 4, "category_name": "Books & Stationery", "description": "Printed books, notebooks and writing tools."},
+            {"category_id": 5, "category_name": "Sports & Outdoors", "description": "Fitness equipment and outdoor accessories."},
+            {"category_id": 6, "category_name": "Health & Beauty", "description": "Skincare, personal care and daily essentials."},
+        ],
+        "products": [
+            {"product_id": 1, "category_id": 1, "product_name": "Logitech MX Master 3S Wireless Mouse", "sku": "ELC-MOU-001", "price": 1450000.00, "stock_quantity": 42, "is_active": True},
+            {"product_id": 2, "category_id": 1, "product_name": "Anker PowerCore 20000mAh Power Bank", "sku": "ELC-PWB-002", "price": 549000.00, "stock_quantity": 130, "is_active": True},
+            {"product_id": 3, "category_id": 1, "product_name": "Samsung 27\" 4K UHD Monitor UR55", "sku": "ELC-MON-003", "price": 3899000.00, "stock_quantity": 15, "is_active": True},
+            {"product_id": 4, "category_id": 1, "product_name": "Keychron K2 Mechanical Keyboard", "sku": "ELC-KEY-004", "price": 1299000.00, "stock_quantity": 25, "is_active": True},
+            {"product_id": 5, "category_id": 1, "product_name": "Sony WH-1000XM5 Headphones", "sku": "ELC-HDP-005", "price": 4999000.00, "stock_quantity": 8, "is_active": True},
+            {"product_id": 6, "category_id": 2, "product_name": "Uniqlo AIRism Cotton T-Shirt", "sku": "FSH-TSH-006", "price": 199000.00, "stock_quantity": 200, "is_active": True},
+            {"product_id": 7, "category_id": 2, "product_name": "Levi's 511 Slim Fit Jeans", "sku": "FSH-JNS-007", "price": 899000.00, "stock_quantity": 60, "is_active": True},
+            {"product_id": 8, "category_id": 2, "product_name": "Eiger Canvas Daypack 25L", "sku": "FSH-BAG-008", "price": 675000.00, "stock_quantity": 35, "is_active": True},
+            {"product_id": 9, "category_id": 2, "product_name": "Adidas Runfalcon 3.0 Sneakers", "sku": "FSH-SHO-009", "price": 799000.00, "stock_quantity": 48, "is_active": True},
+            {"product_id": 10, "category_id": 3, "product_name": "IKEA MARKUS Office Chair", "sku": "HML-CHR-010", "price": 2799000.00, "stock_quantity": 12, "is_active": True},
+            {"product_id": 11, "category_id": 3, "product_name": "Ceramic Coffee Mug Set (4 pcs)", "sku": "HML-MUG-011", "price": 165000.00, "stock_quantity": 90, "is_active": True},
+            {"product_id": 12, "category_id": 3, "product_name": "Philips LED Desk Lamp", "sku": "HML-LMP-012", "price": 349000.00, "stock_quantity": 55, "is_active": True},
+            {"product_id": 13, "category_id": 3, "product_name": "Non-stick Frying Pan 24cm", "sku": "HML-PAN-013", "price": 259000.00, "stock_quantity": 70, "is_active": True},
+            {"product_id": 14, "category_id": 4, "product_name": "Clean Code - Robert C. Martin", "sku": "BKS-BOK-014", "price": 585000.00, "stock_quantity": 20, "is_active": True},
+            {"product_id": 15, "category_id": 4, "product_name": "Designing Data-Intensive Applications", "sku": "BKS-BOK-015", "price": 725000.00, "stock_quantity": 14, "is_active": True},
+            {"product_id": 16, "category_id": 4, "product_name": "Pilot G2 Gel Pen (Box of 12)", "sku": "BKS-PEN-016", "price": 132000.00, "stock_quantity": 150, "is_active": True},
+            {"product_id": 17, "category_id": 4, "product_name": "A5 Hardcover Dotted Notebook", "sku": "BKS-NTB-017", "price": 89000.00, "stock_quantity": 110, "is_active": True},
+            {"product_id": 18, "category_id": 5, "product_name": "Yoga Mat TPE 6mm", "sku": "SPT-YGM-018", "price": 245000.00, "stock_quantity": 65, "is_active": True},
+            {"product_id": 19, "category_id": 5, "product_name": "Adjustable Dumbbell 10kg", "sku": "SPT-DMB-019", "price": 615000.00, "stock_quantity": 22, "is_active": True},
+            {"product_id": 20, "category_id": 5, "product_name": "Stainless Steel Water Bottle 1L", "sku": "SPT-BTL-020", "price": 175000.00, "stock_quantity": 95, "is_active": True},
+            {"product_id": 21, "category_id": 6, "product_name": "Wardah UV Shield Sunscreen SPF 35", "sku": "HBT-SUN-021", "price": 45000.00, "stock_quantity": 180, "is_active": True},
+            {"product_id": 22, "category_id": 6, "product_name": "Sensodyne Repair & Protect 100g", "sku": "HBT-TPT-022", "price": 32000.00, "stock_quantity": 0, "is_active": True},
+            {"product_id": 23, "category_id": 6, "product_name": "Somethinc Niacinamide 10% Serum", "sku": "HBT-SRM-023", "price": 149000.00, "stock_quantity": 40, "is_active": False},
+        ],
+        "orders": [
+            {"order_id": 1, "user_id": 1, "order_status": "Delivered", "shipping_address": "Jl. Margonda Raya No. 45, Beji, Depok, Jawa Barat 16424", "shipping_fee": 22000.00, "total_amount": 3369000.00, "ordered_at": "2026-02-04T10:22:00"},
+            {"order_id": 2, "user_id": 2, "order_status": "Delivered", "shipping_address": "Jl. Dipatiukur No. 112, Coblong, Bandung, Jawa Barat 40132", "shipping_fee": 28000.00, "total_amount": 1599000.00, "ordered_at": "2026-02-17T15:47:00"},
+            {"order_id": 3, "user_id": 3, "order_status": "Shipped", "shipping_address": "Jl. Senopati No. 8, Kebayoran Baru, Jakarta Selatan 12190", "shipping_fee": 18000.00, "total_amount": 1506000.00, "ordered_at": "2026-03-09T09:05:00"},
+            {"order_id": 4, "user_id": 1, "order_status": "Delivered", "shipping_address": "Jl. Margonda Raya No. 45, Beji, Depok, Jawa Barat 16424", "shipping_fee": 22000.00, "total_amount": 581000.00, "ordered_at": "2026-03-21T19:33:00"},
+            {"order_id": 5, "user_id": 4, "order_status": "Cancelled", "shipping_address": "Jl. Raya Darmo No. 77, Wonokromo, Surabaya, Jawa Timur 60241", "shipping_fee": 35000.00, "total_amount": 8933000.00, "ordered_at": "2026-04-02T08:14:00"},
+            {"order_id": 6, "user_id": 5, "order_status": "Paid", "shipping_address": "Jl. Boulevard Gading Serpong Blok M2/9, Tangerang, Banten 15810", "shipping_fee": 20000.00, "total_amount": 1845000.00, "ordered_at": "2026-04-15T21:08:00"},
+            {"order_id": 7, "user_id": 6, "order_status": "Delivered", "shipping_address": "Jl. Kaliurang KM 5 No. 21, Sleman, Yogyakarta 55281", "shipping_fee": 30000.00, "total_amount": 3228000.00, "ordered_at": "2026-05-06T12:41:00"},
+            {"order_id": 8, "user_id": 3, "order_status": "Delivered", "shipping_address": "Jl. Senopati No. 8, Kebayoran Baru, Jakarta Selatan 12190", "shipping_fee": 18000.00, "total_amount": 5316000.00, "ordered_at": "2026-05-19T17:26:00"},
+            {"order_id": 9, "user_id": 7, "order_status": "Pending", "shipping_address": "Jl. Akses UI No. 130, Tugu, Depok, Jawa Barat 16451", "shipping_fee": 22000.00, "total_amount": 1095000.00, "ordered_at": "2026-06-11T11:59:00"},
+            {"order_id": 10, "user_id": 2, "order_status": "Shipped", "shipping_address": "Jl. Dipatiukur No. 112, Coblong, Bandung, Jawa Barat 40132", "shipping_fee": 28000.00, "total_amount": 507000.00, "ordered_at": "2026-06-28T14:10:00"},
+            {"order_id": 11, "user_id": 5, "order_status": "Delivered", "shipping_address": "Jl. Boulevard Gading Serpong Blok M2/9, Tangerang, Banten 15810", "shipping_fee": 20000.00, "total_amount": 4219000.00, "ordered_at": "2026-07-09T09:47:00"},
+            {"order_id": 12, "user_id": 6, "order_status": "Paid", "shipping_address": "Jl. Kaliurang KM 5 No. 21, Sleman, Yogyakarta 55281", "shipping_fee": 30000.00, "total_amount": 274000.00, "ordered_at": "2026-07-24T20:02:00"},
+        ],
+        "order_items": [
+            {"order_item_id": 1, "order_id": 1, "product_id": 1, "quantity": 1, "unit_price": 1450000.00, "line_total": 1450000.00},
+            {"order_item_id": 2, "order_id": 1, "product_id": 4, "quantity": 1, "unit_price": 1199000.00, "line_total": 1199000.00},
+            {"order_item_id": 3, "order_id": 1, "product_id": 12, "quantity": 2, "unit_price": 349000.00, "line_total": 698000.00},
+            {"order_item_id": 4, "order_id": 2, "product_id": 6, "quantity": 3, "unit_price": 199000.00, "line_total": 597000.00},
+            {"order_item_id": 5, "order_id": 2, "product_id": 9, "quantity": 1, "unit_price": 799000.00, "line_total": 799000.00},
+            {"order_item_id": 6, "order_id": 2, "product_id": 20, "quantity": 1, "unit_price": 175000.00, "line_total": 175000.00},
+            {"order_item_id": 7, "order_id": 3, "product_id": 14, "quantity": 1, "unit_price": 585000.00, "line_total": 585000.00},
+            {"order_item_id": 8, "order_id": 3, "product_id": 15, "quantity": 1, "unit_price": 725000.00, "line_total": 725000.00},
+            {"order_item_id": 9, "order_id": 3, "product_id": 17, "quantity": 2, "unit_price": 89000.00, "line_total": 178000.00},
+            {"order_item_id": 10, "order_id": 4, "product_id": 11, "quantity": 1, "unit_price": 165000.00, "line_total": 165000.00},
+            {"order_item_id": 11, "order_id": 4, "product_id": 13, "quantity": 1, "unit_price": 259000.00, "line_total": 259000.00},
+            {"order_item_id": 12, "order_id": 4, "product_id": 21, "quantity": 3, "unit_price": 45000.00, "line_total": 135000.00},
+            {"order_item_id": 13, "order_id": 5, "product_id": 5, "quantity": 1, "unit_price": 4999000.00, "line_total": 4999000.00},
+            {"order_item_id": 14, "order_id": 5, "product_id": 3, "quantity": 1, "unit_price": 3899000.00, "line_total": 3899000.00},
+            {"order_item_id": 15, "order_id": 6, "product_id": 18, "quantity": 1, "unit_price": 245000.00, "line_total": 245000.00},
+            {"order_item_id": 16, "order_id": 6, "product_id": 19, "quantity": 2, "unit_price": 615000.00, "line_total": 1230000.00},
+            {"order_item_id": 17, "order_id": 6, "product_id": 20, "quantity": 2, "unit_price": 175000.00, "line_total": 350000.00},
+            {"order_item_id": 18, "order_id": 7, "product_id": 10, "quantity": 1, "unit_price": 2799000.00, "line_total": 2799000.00},
+            {"order_item_id": 19, "order_id": 7, "product_id": 16, "quantity": 1, "unit_price": 132000.00, "line_total": 132000.00},
+            {"order_item_id": 20, "order_id": 7, "product_id": 17, "quantity": 3, "unit_price": 89000.00, "line_total": 267000.00},
+            {"order_item_id": 21, "order_id": 8, "product_id": 5, "quantity": 1, "unit_price": 4749000.00, "line_total": 4749000.00},
+            {"order_item_id": 22, "order_id": 8, "product_id": 2, "quantity": 1, "unit_price": 549000.00, "line_total": 549000.00},
+            {"order_item_id": 23, "order_id": 9, "product_id": 6, "quantity": 2, "unit_price": 199000.00, "line_total": 398000.00},
+            {"order_item_id": 24, "order_id": 9, "product_id": 8, "quantity": 1, "unit_price": 675000.00, "line_total": 675000.00},
+            {"order_item_id": 25, "order_id": 10, "product_id": 11, "quantity": 2, "unit_price": 165000.00, "line_total": 330000.00},
+            {"order_item_id": 26, "order_id": 10, "product_id": 23, "quantity": 1, "unit_price": 149000.00, "line_total": 149000.00},
+            {"order_item_id": 27, "order_id": 11, "product_id": 1, "quantity": 2, "unit_price": 1450000.00, "line_total": 2900000.00},
+            {"order_item_id": 28, "order_id": 11, "product_id": 4, "quantity": 1, "unit_price": 1299000.00, "line_total": 1299000.00},
+            {"order_item_id": 29, "order_id": 12, "product_id": 21, "quantity": 4, "unit_price": 45000.00, "line_total": 180000.00},
+            {"order_item_id": 30, "order_id": 12, "product_id": 22, "quantity": 2, "unit_price": 32000.00, "line_total": 64000.00},
+        ],
+    }
+    return jsonify(data)
+
+
 # ---------- Users ----------
 users_bp = Blueprint("users", __name__, url_prefix="/users")
 
@@ -39,10 +140,11 @@ def get_user(user_id):
 def create_user():
     try:
         data = request.get_json()
-        if not data or not data.get('full_name') or not data.get('email') or not data.get('password_hash'):
+        if not data or not data.get('username') or not data.get('full_name') or not data.get('email') or not data.get('password_hash'):
             return jsonify({"error": "Missing required field"}), 400
 
         user = User(
+            username=data["username"],
             full_name=data["full_name"],
             email=data["email"],
             password_hash=data["password_hash"],
@@ -66,6 +168,7 @@ def update_user(user_id):
     try:
         user = db.get_or_404(User, user_id)
         data = request.get_json()
+        user.username = data.get("username", user.username)
         user.full_name = data.get("full_name", user.full_name)
         user.role = data.get("role", user.role)
         user.email = data.get("email", user.email)

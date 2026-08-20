@@ -2,7 +2,7 @@ from flask import Flask
 from flask_migrate import Migrate
 from utils import db
 from models import User, Category, Product, Order, order_items
-from routes import home_bp, users_bp, categories_bp, products_bp, orders_bp, order_items_bp
+from routes import home_bp, warmup_bp, users_bp, categories_bp, products_bp, orders_bp, order_items_bp
 
 
 def create_app():
@@ -19,6 +19,7 @@ def create_app():
 
     # Register blueprints
     app.register_blueprint(home_bp)
+    app.register_blueprint(warmup_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(categories_bp)
     app.register_blueprint(products_bp)

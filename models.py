@@ -6,6 +6,7 @@ class User(db.Model):
     __tablename__ = "users"
 
     user_id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), nullable=False, unique=True)
     full_name = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(20), nullable=False, server_default="Customer")
     email = db.Column(db.String(255), nullable=False, unique=True)
@@ -18,6 +19,7 @@ class User(db.Model):
     def to_dict(self):
         return {
             "user_id": self.user_id,
+            "username": self.username,
             "full_name": self.full_name,
             "role": self.role,
             "email": self.email,
