@@ -1,4 +1,6 @@
 from datetime import datetime
+
+from auth import check_password, hash_password
 from utils import db
 
 
@@ -15,6 +17,12 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     orders = db.relationship("Order", backref="user", lazy=True)
+
+    def set_password(self, raw_password):
+        self.password_hash = hash_password(raw_password)
+
+    def check_password(self, raw_password):
+        return check_password(raw_password, self.password_hash)
 
     def to_dict(self):
         return {

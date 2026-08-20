@@ -1,7 +1,10 @@
 from flask import Blueprint, request, jsonify
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from sqlalchemy.exc import IntegrityError
 from utils import db
 from models import User, Category, Product, Order, order_items
+
+ACTIVE_ORDER_STATUSES = ("Pending", "Paid", "Shipped", "Return Process")
 
 
 # ---------- Home ----------
@@ -139,25 +142,28 @@ def get_user(user_id):
 @users_bp.route("", methods=["POST"])
 def create_user():
     try:
-        data = request.get_json()
-        if not data or not data.get('username') or not data.get('full_name') or not data.get('email') or not data.get('password_hash'):
-            return jsonify({"error": "Missing required field"}), 400
+        data = request.get_json(silent=True)
+        if not data or not data.get('username') or not data.get('full_name') or not data.get('email') or not data.get('password'):
+            return jsonify({"error": "Missing required field: username, full_name, email, password"}), 400
+
+        if len(data["password"]) < 8:
+            return jsonify({"error": "Password must be at least 8 characters long"}), 400
 
         user = User(
             username=data["username"],
             full_name=data["full_name"],
             email=data["email"],
-            password_hash=data["password_hash"],
-            role=data.get("role", "customer"),
+            role=data.get("role", "Customer"),
         )
+        user.set_password(data["password"])
 
         db.session.add(user)
         db.session.commit()
-        return jsonify({"message": "User registered succesfully",
+        return jsonify({"message": "User registered successfully",
                         "user": user.to_dict()}), 201
     except IntegrityError:
         db.session.rollback()
-        return jsonify({"error": "Email already exists"}), 409
+        return jsonify({"error": "Username or email already exists"}), 409
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -199,6 +205,34 @@ def delete_user(user_id):
         return jsonify({"error": str(e)}), 500
 
 
+# ---------- Auth ----------
+auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
+
+
+@auth_bp.route("/login", methods=["POST"])
+def login():
+    try:
+        data = request.get_json(silent=True)
+        if not data or not data.get("email") or not data.get("password"):
+            return jsonify({"error": "Missing required field: email, password"}), 400
+
+        user = User.query.filter_by(email=data["email"]).first()
+        if not user or not user.check_password(data["password"]):
+            return jsonify({"error": "Invalid email or password"}), 401
+
+        if not user.is_active:
+            return jsonify({"error": "This account has been deactivated"}), 403
+
+        access_token = create_access_token(identity=str(user.user_id))
+        return jsonify({
+            "message": "Login successful",
+            "access_token": access_token,
+            "user": user.to_dict(),
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ---------- Categories ----------
 categories_bp = Blueprint("categories", __name__, url_prefix="/categories")
 
@@ -216,12 +250,15 @@ def get_categories():
 def get_category(category_id):
     try:
         category = db.get_or_404(Category, category_id)
-        return jsonify(category.to_dict())
+        result = category.to_dict()
+        result["products"] = [p.to_dict() for p in category.products]
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 @categories_bp.route("", methods=["POST"])
+@jwt_required()
 def create_category():
     try:
         data = request.get_json()
@@ -244,6 +281,7 @@ def create_category():
 
 
 @categories_bp.route("/<int:category_id>", methods=["PUT"])
+@jwt_required()
 def update_category(category_id):
     try:
         category = db.get_or_404(Category, category_id)
@@ -262,6 +300,7 @@ def update_category(category_id):
 
 
 @categories_bp.route("/<int:category_id>", methods=["DELETE"])
+@jwt_required()
 def delete_category(category_id):
     try:
         category = db.get_or_404(Category, category_id)
@@ -298,12 +337,50 @@ def get_product(product_id):
         return jsonify({"error": str(e)}), 500
 
 
+def validate_product_payload(data, partial=False):
+    """Returns an error message string, or None if the payload is valid.
+    When partial=True (PUT), only fields present in the payload are checked."""
+    required_fields = ["category_id", "product_name", "sku", "price"]
+    if not partial:
+        for field in required_fields:
+            if data.get(field) in (None, ""):
+                return f"Missing required field: {field}"
+
+    if "category_id" in data and data["category_id"] is not None:
+        if not Category.query.get(data["category_id"]):
+            return "category_id does not reference an existing category"
+
+    if "sku" in data and data["sku"] is not None:
+        if not isinstance(data["sku"], str) or not (1 <= len(data["sku"]) <= 11):
+            return "sku must be a string of at most 11 characters"
+
+    if "price" in data and data["price"] is not None:
+        try:
+            price = float(data["price"])
+        except (TypeError, ValueError):
+            return "price must be a number"
+        if price < 0:
+            return "price must be greater than or equal to 0"
+
+    if "stock_quantity" in data and data["stock_quantity"] is not None:
+        stock = data["stock_quantity"]
+        if not isinstance(stock, int) or isinstance(stock, bool) or stock < 0:
+            return "stock_quantity must be a non-negative integer"
+
+    return None
+
+
 @products_bp.route("", methods=["POST"])
+@jwt_required()
 def create_product():
     try:
-        data = request.get_json()
-        if not data or not data.get('category_id') or not data.get('product_name') or not data.get('sku') or not data.get('sku') or not data.get('price'):
-            return jsonify({"error": "Missing required field"}), 400
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"error": "Missing request body"}), 400
+
+        error = validate_product_payload(data, partial=False)
+        if error:
+            return jsonify({"error": error}), 400
 
         product = Product(
             category_id=data["category_id"],
@@ -326,10 +403,18 @@ def create_product():
 
 
 @products_bp.route("/<int:product_id>", methods=["PUT"])
+@jwt_required()
 def update_product(product_id):
     try:
         product = db.get_or_404(Product, product_id)
-        data = request.get_json()
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"error": "Missing request body"}), 400
+
+        error = validate_product_payload(data, partial=True)
+        if error:
+            return jsonify({"error": error}), 400
+
         product.product_name = data.get("product_name", product.product_name)
         product.sku = data.get("sku", product.sku)
         product.description = data.get("description", product.description)
@@ -349,9 +434,23 @@ def update_product(product_id):
 
 
 @products_bp.route("/<int:product_id>", methods=["DELETE"])
+@jwt_required()
 def delete_product(product_id):
     try:
         product = db.get_or_404(Product, product_id)
+
+        active_order_exists = (
+            db.session.query(order_items)
+            .join(Order, Order.order_id == order_items.c.order_id)
+            .filter(
+                order_items.c.product_id == product_id,
+                Order.order_status.in_(ACTIVE_ORDER_STATUSES),
+            )
+            .first()
+        )
+        if active_order_exists:
+            return jsonify({"error": "Cannot delete product with active orders"}), 409
+
         db.session.delete(product)
         db.session.commit()
         return jsonify({"message": "Product deleted"}), 200
@@ -368,46 +467,61 @@ orders_bp = Blueprint("orders", __name__, url_prefix="/orders")
 
 
 @orders_bp.route("", methods=["GET"])
+@jwt_required()
 def get_orders():
     try:
-        orders = Order.query.order_by(Order.ordered_at.desc()).all()
+        user_id = int(get_jwt_identity())
+        orders = (
+            Order.query.filter_by(user_id=user_id)
+            .order_by(Order.ordered_at.desc())
+            .all()
+        )
         return jsonify([o.to_dict() for o in orders])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 @orders_bp.route("/<int:order_id>", methods=["GET"])
+@jwt_required()
 def get_order(order_id):
     try:
         order = db.get_or_404(Order, order_id)
+        if order.user_id != int(get_jwt_identity()):
+            return jsonify({"error": "You do not have access to this order"}), 403
+
         result = order.to_dict()
         items = db.session.execute(
             order_items.select().where(order_items.c.order_id == order_id)
         ).fetchall()
-        result["items"] = [
-            {
+        item_list = []
+        for row in items:
+            product = db.session.get(Product, row.product_id)
+            item_list.append({
                 "order_item_id": row.order_item_id,
                 "product_id": row.product_id,
                 "quantity": row.quantity,
                 "unit_price": float(row.unit_price),
                 "line_total": float(row.line_total) if row.line_total else None,
-            }
-            for row in items
-        ]
+                "product": product.to_dict() if product else None,
+            })
+        result["items"] = item_list
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 @orders_bp.route("", methods=["POST"])
+@jwt_required()
 def create_order():
     try:
-        data = request.get_json()
-        if not data or not data.get("user_id") or not data.get("shipping_address"):
-            return jsonify({"error": "Missing required field"}), 400
+        data = request.get_json(silent=True)
+        if not data or not data.get("shipping_address"):
+            return jsonify({"error": "Missing required field: shipping_address"}), 400
+
+        user_id = int(get_jwt_identity())
 
         order = Order(
-            user_id=data["user_id"],
+            user_id=user_id,
             shipping_address=data["shipping_address"],
             shipping_fee=data.get("shipping_fee", 0),
         )
@@ -447,9 +561,13 @@ def create_order():
 
 
 @orders_bp.route("/<int:order_id>", methods=["PUT"])
+@jwt_required()
 def update_order(order_id):
     try:
         order = db.get_or_404(Order, order_id)
+        if order.user_id != int(get_jwt_identity()):
+            return jsonify({"error": "You do not have access to this order"}), 403
+
         data = request.get_json()
 
         # Block shipping address changes if order is already shipped/delivered/cancelled
@@ -476,15 +594,37 @@ def update_order(order_id):
         return jsonify({"error": str(e)}), 500
 
 
+@orders_bp.route("/<int:order_id>", methods=["DELETE"])
+@jwt_required()
+def delete_order(order_id):
+    try:
+        order = db.get_or_404(Order, order_id)
+        if order.user_id != int(get_jwt_identity()):
+            return jsonify({"error": "You do not have access to this order"}), 403
+
+        db.session.delete(order)
+        db.session.commit()
+        return jsonify({"message": "Order deleted"}), 200
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error": "Cannot delete this order"}), 409
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 
 # ---------- Order Items ----------
 order_items_bp = Blueprint("order_items", __name__, url_prefix="/orders/<int:order_id>/items")
 
 
 @order_items_bp.route("", methods=["GET"])
+@jwt_required()
 def get_order_items(order_id):
     try:
-        db.get_or_404(Order, order_id)
+        order = db.get_or_404(Order, order_id)
+        if order.user_id != int(get_jwt_identity()):
+            return jsonify({"error": "You do not have access to this order"}), 403
+
         items = db.session.execute(
             order_items.select().where(order_items.c.order_id == order_id)
         ).fetchall()
