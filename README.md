@@ -53,7 +53,7 @@ revoushop-db/
 │   ├── category_service.py # Category business logic
 │   ├── product_service.py  # Product business logic
 │   └── order_service.py    # Order business logic
-├── controllers/
+├── routes/
 │   ├── home_controller.py  # / and /warmup routes
 │   ├── user_controller.py  # /users routes
 │   ├── auth_controller.py  # /auth routes
@@ -162,11 +162,40 @@ Visit `http://127.0.0.1:5001/apidocs/` when the server is running.
 
 ### Postman Requests
 
-> Screenshots of Postman requests for GET, POST, PUT, DELETE operations are stored in the `docs/` folder.
+**POST User:**
 
-### Database Tables (DBeaver/pgAdmin)
+![POST User](docs/Postman_POST_User.png)
 
-> Screenshot showing all tables (users, products, categories, orders, order_items) with their structure is stored in `docs/erd.png`.
+**POST Category:**
+
+![POST Category](docs/Postman_POST_Category.png)
+
+**POST Products:**
+
+![POST Products](docs/Postman_POST_Products.png)
+
+### Database Tables (DBeaver)
+
+**Order Items Association Table:**
+
+![Order Items](docs/order_items%20association_table.png)
+
+**Role Added to Users Table:**
+
+![Role Column](docs/role_added_to_users_table.png)
+
+**Flask DB Migration History:**
+
+![Migration History](docs/full_flask_db_history.png)
+
+### Commit History
+
+![Commit History](docs/Commit%20history.png)
+
+### Local Demo
+
+- [Create User Demo (video)](docs/Local%20demo-create%20user.mp4)
+- [Get Products Demo (video)](docs/Local%20demo-get%20products.mp4)
 
 ## ERD (Entity Relationship Diagram)
 
