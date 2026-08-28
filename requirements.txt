@@ -23,3 +23,5 @@ python-dotenv==1.0.1
 SQLAlchemy==2.0.32
 typing_extensions==4.16.0
 Werkzeug==3.1.8
+marshmallow==4.3.1
+flasgger==0.9.7.1

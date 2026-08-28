@@ -4,6 +4,12 @@ from sqlalchemy.exc import IntegrityError
 from utils import db
 from models import User, Category, Product, Order, order_items
 from auth import roles_required
+from schemas import (
+    CategoryCreateSchema, CategoryUpdateSchema,
+    ProductCreateSchema, ProductUpdateSchema,
+    UserRegisterSchema, LoginSchema,
+    OrderCreateSchema,
+)
 
 ACTIVE_ORDER_STATUSES = ("Pending", "Paid", "Shipped", "Return Process")
 
@@ -327,19 +333,22 @@ def create_user():
     """
     try:
         data = request.get_json(silent=True)
-        if not data or not data.get('username') or not data.get('full_name') or not data.get('email') or not data.get('password'):
-            return jsonify({"error": "Missing required field: username, full_name, email, password"}), 400
+        if not data:
+            return jsonify({"error": "Request body must be JSON"}), 400
 
-        if len(data["password"]) < 8:
-            return jsonify({"error": "Password must be at least 8 characters long"}), 400
+        user_register_schema = UserRegisterSchema()
+        errors = user_register_schema.validate(data)
+        if errors:
+            return jsonify({"errors": errors}), 400
 
+        validated = user_register_schema.load(data)
         user = User(
-            username=data["username"],
-            full_name=data["full_name"],
-            email=data["email"],
-            role=data.get("role", "Customer"),
+            username=validated["username"],
+            full_name=validated["full_name"],
+            email=validated["email"],
+            role=validated["role"],
         )
-        user.set_password(data["password"])
+        user.set_password(validated["password"])
 
         db.session.add(user)
         db.session.commit()
@@ -484,11 +493,17 @@ def login():
     """
     try:
         data = request.get_json(silent=True)
-        if not data or not data.get("email") or not data.get("password"):
-            return jsonify({"error": "Missing required field: email, password"}), 400
+        if not data:
+            return jsonify({"error": "Request body must be JSON"}), 400
 
-        user = User.query.filter_by(email=data["email"]).first()
-        if not user or not user.check_password(data["password"]):
+        login_schema = LoginSchema()
+        errors = login_schema.validate(data)
+        if errors:
+            return jsonify({"errors": errors}), 400
+
+        validated = login_schema.load(data)
+        user = User.query.filter_by(email=validated["email"]).first()
+        if not user or not user.check_password(validated["password"]):
             return jsonify({"error": "Invalid email or password"}), 401
 
         if not user.is_active:
@@ -632,13 +647,19 @@ def create_category():
         description: Internal server error
     """
     try:
-        data = request.get_json()
-        if not data or not data.get('category_name') or not data.get('description'):
-            return jsonify({"error": "Missing required field"}), 400
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"error": "Request body must be JSON"}), 400
 
+        category_create_schema = CategoryCreateSchema()
+        errors = category_create_schema.validate(data)
+        if errors:
+            return jsonify({"errors": errors}), 400
+
+        validated = category_create_schema.load(data)
         category = Category(
-            category_name=data["category_name"],
-            description=data.get("description"),
+            category_name=validated["category_name"],
+            description=validated["description"],
         )
         db.session.add(category)
         db.session.commit()
@@ -687,9 +708,20 @@ def update_category(category_id):
     """
     try:
         category = db.get_or_404(Category, category_id)
-        data = request.get_json()
-        category.category_name = data.get("category_name", category.category_name)
-        category.description = data.get("description", category.description)
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"error": "Request body must be JSON"}), 400
+
+        category_update_schema = CategoryUpdateSchema()
+        errors = category_update_schema.validate(data)
+        if errors:
+            return jsonify({"errors": errors}), 400
+
+        validated = category_update_schema.load(data)
+        if "category_name" in validated:
+            category.category_name = validated["category_name"]
+        if "description" in validated:
+            category.description = validated["description"]
         db.session.commit()
         return jsonify({"message": "category update successfully",
                         "category": category.to_dict()})
@@ -813,49 +845,6 @@ def get_product(product_id):
         return jsonify({"error": str(e)}), 500
 
 
-def validate_product_payload(data, partial=False):
-    """Returns a tuple (error_message, status_code), or None if the payload is valid.
-    When partial=True (PUT), only fields present in the payload are checked.
-    - 400 for missing fields, wrong type (non-numeric price, non-integer stock, boolean as price)
-    - 422 for range violations (negative price, negative stock, empty name, name > 100 chars)
-    """
-    required_fields = ["category_id", "product_name", "sku", "price"]
-    if not partial:
-        for field in required_fields:
-            if data.get(field) in (None, ""):
-                return (f"Missing required field: {field}", 400)
-
-    if "product_name" in data:
-        name = data["product_name"]
-        if not isinstance(name, str) or not name.strip():
-            return ("product_name must not be empty", 400)
-        if len(name.strip()) > 100:
-            return ("product_name must not exceed 100 characters", 422)
-
-    if "category_id" in data and data["category_id"] is not None:
-        if not Category.query.get(data["category_id"]):
-            return ("category_id does not reference an existing category", 400)
-
-    if "sku" in data and data["sku"] is not None:
-        if not isinstance(data["sku"], str) or not (1 <= len(data["sku"]) <= 11):
-            return ("sku must be a string of at most 11 characters", 400)
-
-    if "price" in data and data["price"] is not None:
-        price = data["price"]
-        if isinstance(price, bool) or not isinstance(price, (int, float)):
-            return ("price must be a number", 400)
-        if price < 0:
-            return ("price must be greater than or equal to 0", 422)
-
-    if "stock_quantity" in data:
-        stock = data["stock_quantity"]
-        if stock is not None:
-            if isinstance(stock, bool) or not isinstance(stock, int):
-                return ("stock_quantity must be an integer", 400)
-            if stock < 0:
-                return ("stock_quantity must be a non-negative integer", 422)
-
-    return None
 
 
 @products_bp.route("", methods=["POST"])
@@ -911,20 +900,21 @@ def create_product():
     try:
         data = request.get_json(silent=True)
         if not data:
-            return jsonify({"error": "Missing request body"}), 400
+            return jsonify({"error": "Request body must be JSON"}), 400
 
-        error = validate_product_payload(data, partial=False)
-        if error:
-            message, status_code = error
-            return jsonify({"error": message}), status_code
+        product_create_schema = ProductCreateSchema()
+        errors = product_create_schema.validate(data)
+        if errors:
+            return jsonify({"errors": errors}), 400
 
+        validated = product_create_schema.load(data)
         product = Product(
-            category_id=data["category_id"],
-            product_name=data["product_name"].strip(),
-            sku=data["sku"],
-            description=data.get("description"),
-            price=data["price"],
-            stock_quantity=data.get("stock_quantity", 0),
+            category_id=validated["category_id"],
+            product_name=validated["product_name"].strip(),
+            sku=validated["sku"],
+            description=validated.get("description"),
+            price=validated["price"],
+            stock_quantity=validated.get("stock_quantity", 0),
         )
         db.session.add(product)
         db.session.commit()
@@ -990,20 +980,28 @@ def update_product(product_id):
             return jsonify({"error": f"Product {product_id} not found"}), 404
         data = request.get_json(silent=True)
         if not data:
-            return jsonify({"error": "Missing request body"}), 400
+            return jsonify({"error": "Request body must be JSON"}), 400
 
-        error = validate_product_payload(data, partial=True)
-        if error:
-            message, status_code = error
-            return jsonify({"error": message}), status_code
+        product_update_schema = ProductUpdateSchema()
+        errors = product_update_schema.validate(data)
+        if errors:
+            return jsonify({"errors": errors}), 400
 
-        product.product_name = data.get("product_name", product.product_name).strip() if "product_name" in data else product.product_name
-        product.sku = data.get("sku", product.sku)
-        product.description = data.get("description", product.description)
-        product.price = data.get("price", product.price)
-        product.stock_quantity = data.get("stock_quantity", product.stock_quantity)
-        product.is_active = data.get("is_active", product.is_active)
-        product.category_id = data.get("category_id", product.category_id)
+        validated = product_update_schema.load(data)
+        if "product_name" in validated:
+            product.product_name = validated["product_name"].strip()
+        if "sku" in validated:
+            product.sku = validated["sku"]
+        if "description" in validated:
+            product.description = validated["description"]
+        if "price" in validated:
+            product.price = validated["price"]
+        if "stock_quantity" in validated:
+            product.stock_quantity = validated["stock_quantity"]
+        if "is_active" in validated:
+            product.is_active = validated["is_active"]
+        if "category_id" in validated:
+            product.category_id = validated["category_id"]
         db.session.commit()
         return jsonify({"message": "Product updated",
                         "product": product.to_dict()}), 200
@@ -1197,26 +1195,32 @@ def create_order():
     """
     try:
         data = request.get_json(silent=True)
-        if not data or not data.get("shipping_address"):
-            return jsonify({"error": "Missing required field: shipping_address"}), 400
+        if not data:
+            return jsonify({"error": "Request body must be JSON"}), 400
 
+        order_create_schema = OrderCreateSchema()
+        errors = order_create_schema.validate(data)
+        if errors:
+            return jsonify({"errors": errors}), 400
+
+        validated = order_create_schema.load(data)
         user_id = int(get_jwt_identity())
 
         order = Order(
             user_id=user_id,
-            shipping_address=data["shipping_address"],
-            shipping_fee=data.get("shipping_fee", 0),
+            shipping_address=validated["shipping_address"],
+            shipping_fee=validated["shipping_fee"],
         )
         db.session.add(order)
         db.session.flush()
 
-        total = float(data.get("shipping_fee", 0))
-        for item_data in data.get("items", []):
-            if not item_data.get("product_id") or not item_data.get("quantity"):
+        total = float(validated["shipping_fee"])
+        for item_data in validated["items"]:
+            product = db.session.get(Product, item_data["product_id"])
+            if product is None:
                 db.session.rollback()
-                return jsonify({"error": "Each item requires product_id and quantity"}), 400
+                return jsonify({"error": f"Product {item_data['product_id']} not found"}), 404
 
-            product = db.get_or_404(Product, item_data["product_id"])
             unit_price = float(product.price)
             quantity = item_data["quantity"]
             line_total = unit_price * quantity
