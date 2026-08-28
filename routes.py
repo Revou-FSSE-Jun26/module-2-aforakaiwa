@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, create_refresh_token, get_jwt_identity, jwt_required
 from sqlalchemy.exc import IntegrityError
@@ -253,7 +255,7 @@ def get_users():
         description: Internal server error
     """
     try:
-        users = User.query.all()
+        users = User.query.filter_by(deleted_at=None).all()
         return jsonify([user.to_dict() for user in users])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -281,7 +283,9 @@ def get_user(user_id):
         description: Internal server error
     """
     try:
-        user = db.get_or_404(User, user_id)
+        user = db.session.get(User, user_id)
+        if user is None or user.deleted_at is not None:
+            return jsonify({"error": f"User {user_id} not found"}), 404
         return jsonify(user.to_dict())
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -441,7 +445,7 @@ def delete_user(user_id):
     """
     try:
         user = db.get_or_404(User, user_id)
-        db.session.delete(user)
+        user.deleted_at = datetime.utcnow()
         db.session.commit()
         return jsonify({"message": "User deleted"}), 200
     except IntegrityError:
@@ -574,7 +578,7 @@ def get_categories():
         description: Internal server error
     """
     try:
-        categories = Category.query.all()
+        categories = Category.query.filter_by(deleted_at=None).all()
         return jsonify([category.to_dict() for category in categories])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -602,9 +606,11 @@ def get_category(category_id):
         description: Internal server error
     """
     try:
-        category = db.get_or_404(Category, category_id)
+        category = db.session.get(Category, category_id)
+        if category is None or category.deleted_at is not None:
+            return jsonify({"error": f"Category {category_id} not found"}), 404
         result = category.to_dict()
-        result["products"] = [product.to_dict() for product in category.products]
+        result["products"] = [product.to_dict() for product in category.products if product.deleted_at is None]
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -759,7 +765,7 @@ def delete_category(category_id):
     """
     try:
         category = db.get_or_404(Category, category_id)
-        db.session.delete(category)
+        category.deleted_at = datetime.utcnow()
         db.session.commit()
         return jsonify({"message": "Category deleted"}), 200
     except IntegrityError:
@@ -802,7 +808,7 @@ def get_products():
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 5, type=int)
 
-        pagination = Product.query.paginate(page=page, per_page=per_page, error_out=False)
+        pagination = Product.query.filter_by(deleted_at=None).paginate(page=page, per_page=per_page, error_out=False)
 
         return jsonify({
             "products": [product.to_dict() for product in pagination.items],
@@ -838,7 +844,7 @@ def get_product(product_id):
     """
     try:
         product = db.session.get(Product, product_id)
-        if product is None:
+        if product is None or product.deleted_at is not None:
             return jsonify({"error": f"Product {product_id} not found"}), 404
         return jsonify(product.to_dict())
     except Exception as e:
@@ -976,7 +982,7 @@ def update_product(product_id):
     """
     try:
         product = db.session.get(Product, product_id)
-        if product is None:
+        if product is None or product.deleted_at is not None:
             return jsonify({"error": f"Product {product_id} not found"}), 404
         data = request.get_json(silent=True)
         if not data:
@@ -1052,7 +1058,7 @@ def delete_product(product_id):
         if active_order_exists:
             return jsonify({"error": "Cannot delete product with active orders"}), 409
 
-        db.session.delete(product)
+        product.deleted_at = datetime.utcnow()
         db.session.commit()
         return jsonify({"message": "Product deleted"}), 200
     except IntegrityError:
@@ -1086,7 +1092,7 @@ def get_orders():
     try:
         user_id = int(get_jwt_identity())
         orders = (
-            Order.query.filter_by(user_id=user_id)
+            Order.query.filter_by(user_id=user_id, deleted_at=None)
             .order_by(Order.ordered_at.desc())
             .all()
         )
@@ -1122,7 +1128,9 @@ def get_order(order_id):
         description: Internal server error
     """
     try:
-        order = db.get_or_404(Order, order_id)
+        order = db.session.get(Order, order_id)
+        if order is None or order.deleted_at is not None:
+            return jsonify({"error": f"Order {order_id} not found"}), 404
         if order.user_id != int(get_jwt_identity()):
             return jsonify({"error": "You do not have access to this order"}), 403
 
@@ -1288,7 +1296,9 @@ def update_order(order_id):
         description: Internal server error
     """
     try:
-        order = db.get_or_404(Order, order_id)
+        order = db.session.get(Order, order_id)
+        if order is None or order.deleted_at is not None:
+            return jsonify({"error": f"Order {order_id} not found"}), 404
         if order.user_id != int(get_jwt_identity()):
             return jsonify({"error": "You do not have access to this order"}), 403
 
@@ -1345,11 +1355,13 @@ def delete_order(order_id):
         description: Internal server error
     """
     try:
-        order = db.get_or_404(Order, order_id)
+        order = db.session.get(Order, order_id)
+        if order is None or order.deleted_at is not None:
+            return jsonify({"error": f"Order {order_id} not found"}), 404
         if order.user_id != int(get_jwt_identity()):
             return jsonify({"error": "You do not have access to this order"}), 403
 
-        db.session.delete(order)
+        order.deleted_at = datetime.utcnow()
         db.session.commit()
         return jsonify({"message": "Order deleted"}), 200
     except IntegrityError:
@@ -1391,7 +1403,9 @@ def get_order_items(order_id):
         description: Internal server error
     """
     try:
-        order = db.get_or_404(Order, order_id)
+        order = db.session.get(Order, order_id)
+        if order is None or order.deleted_at is not None:
+            return jsonify({"error": f"Order {order_id} not found"}), 404
         if order.user_id != int(get_jwt_identity()):
             return jsonify({"error": "You do not have access to this order"}), 403
 

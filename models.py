@@ -15,6 +15,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    deleted_at = db.Column(db.DateTime, nullable=True, default=None)
 
     orders = db.relationship("Order", backref="user", lazy=True)
 
@@ -33,6 +34,7 @@ class User(db.Model):
             "email": self.email,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "deleted_at": self.deleted_at.isoformat() if self.deleted_at else None,
         }
 
 
@@ -43,6 +45,7 @@ class Category(db.Model):
     category_name = db.Column(db.String(80), nullable=False, unique=True)
     description = db.Column(db.String(1000))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    deleted_at = db.Column(db.DateTime, nullable=True, default=None)
 
     products = db.relationship("Product", backref="category", lazy=True)
 
@@ -52,6 +55,7 @@ class Category(db.Model):
             "category_name": self.category_name,
             "description": self.description,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "deleted_at": self.deleted_at.isoformat() if self.deleted_at else None,
         }
 
 
@@ -71,6 +75,7 @@ class Product(db.Model):
     stock_quantity = db.Column(db.Integer, nullable=False, default=0)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    deleted_at = db.Column(db.DateTime, nullable=True, default=None)
 
     __table_args__ = (
         db.CheckConstraint("price >= 0", name="chk_product_price"),
@@ -88,6 +93,7 @@ class Product(db.Model):
             "stock_quantity": self.stock_quantity,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "deleted_at": self.deleted_at.isoformat() if self.deleted_at else None,
         }
 
 # ---------- Association Table (Many-to-Many: Orders <-> Products) ----------
@@ -118,6 +124,7 @@ class Order(db.Model):
     shipping_fee = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     total_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     ordered_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    deleted_at = db.Column(db.DateTime, nullable=True, default=None)
 
     # Many-to-many relationship with Product through order_items
     products = db.relationship(
@@ -146,4 +153,5 @@ class Order(db.Model):
             "shipping_fee": float(self.shipping_fee),
             "total_amount": float(self.total_amount),
             "ordered_at": self.ordered_at.isoformat() if self.ordered_at else None,
+            "deleted_at": self.deleted_at.isoformat() if self.deleted_at else None,
         }
