@@ -6,7 +6,7 @@ from flasgger import Swagger
 from config import Config
 from utils import db
 from models import User, Category, Product, Order, order_items
-from routes import (
+from controllers import (
     home_bp,
     warmup_bp,
     users_bp,

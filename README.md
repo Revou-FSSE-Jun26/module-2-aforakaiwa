@@ -1,274 +1,181 @@
-# RevoShop — Database (Checkpoint 1)
+# RevoShop API
 
-Skema relasional untuk **RevoShop**, sebuah toko online. Repositori ini berisi definisi
-tabel PostgreSQL, data contoh, dan kumpulan query untuk entitas inti toko: `users`,
-`categories`, `products`, `orders`, dan tabel penghubung `order_items`.
+A RESTful e-commerce backend API built with Flask and PostgreSQL. RevoShop provides a complete product catalog, user management, and order processing system with role-based access control, JWT authentication, and data validation.
 
-> **Catatan cakupan:** tabel `users` sengaja **belum memiliki kolom `role`**.
-> Kolom tersebut akan ditambahkan sebagai schema migration di Checkpoint 2.
+## Features
 
----
+- **Full CRUD** for products, categories, orders, and users
+- **Many-to-many relationship** between orders and products through the `order_items` association table
+- **Role-based access control (RBAC)** — Admin-only endpoints for managing categories and products
+- **JWT Authentication** with access token + refresh token
+- **Data validation** using Marshmallow schemas (type checking, length limits, range validation)
+- **Error handling** with try/except blocks returning consistent JSON error responses
+- **Soft delete** — records are marked with `deleted_at` timestamp instead of permanently removed
+- **Deletion guard** — blocks removing a product that still has active orders (Pending, Paid, Shipped, Return Process)
+- **Pagination** on GET /products (5 items per page by default)
+- **Swagger UI** documentation at `/apidocs`
+- **MC+S architecture** — Model + Controller + Service pattern for clean separation of concerns
 
-## Daftar isi
+## Technologies Used
 
-- [RevoShop — Database (Checkpoint 1)](#revoshop--database-checkpoint-1)
-  - [Daftar isi](#daftar-isi)
-  - [Struktur proyek](#struktur-proyek)
-  - [Diagram relasi (ERD)](#diagram-relasi-erd)
-  - [Ringkasan skema](#ringkasan-skema)
-  - [1. Prasyarat](#1-prasyarat)
-  - [2. Instalasi PostgreSQL \& password postgres](#2-instalasi-postgresql--password-postgres)
-  - [3. Verifikasi instalasi](#3-verifikasi-instalasi)
-  - [4. Membuat database revoshop\_db](#4-membuat-database-revoshop_db)
-  - [5. Menjalankan Schema.sql dan Seed.sql](#5-menjalankan-schemasql-dan-seedsql)
-  - [6. Verifikasi data](#6-verifikasi-data)
-  - [7. Menjalankan Queries.sql](#7-menjalankan-queriessql)
-  - [Reset database](#reset-database)
-  - [Keputusan desain](#keputusan-desain)
+| Technology | Purpose |
+|-----------|---------|
+| Flask | Web framework |
+| SQLAlchemy | ORM |
+| Flask-Migrate (Alembic) | Database migrations |
+| PostgreSQL | Database |
+| Flask-JWT-Extended | Authentication (JWT) |
+| Marshmallow | Request validation & serialization |
+| Flasgger | Swagger/OpenAPI documentation |
+| bcrypt | Password hashing |
+| pgAdmin / DBeaver | Database management GUI |
+| pytest | Testing |
+| Locust | Load testing |
+| python-dotenv | Environment variable management |
 
----
-
-## Struktur proyek
+## Project Structure
 
 ```
-revoshop-db/
-├── README.md
-├── .gitignore
-├── Schema.sql      # definisi tabel, constraint, foreign key
-├── Seed.sql        # data contoh: 8 user, 23 produk, 12 order, 30 line item
-├── Queries.sql     # query demonstrasi, termasuk WHERE + ORDER BY + LIMIT
-└── docs/
-    └── erd.png     # diagram relasi antar tabel
+revoushop-db/
+├── app.py                  # App factory
+├── config.py               # Configuration (DB URI, JWT, Swagger)
+├── utils.py                # SQLAlchemy instance + naming convention
+├── auth.py                 # Password hashing + roles_required decorator
+├── schemas.py              # Marshmallow validation schemas
+├── models/
+│   ├── user.py             # User model
+│   ├── category.py         # Category model
+│   ├── product.py          # Product model
+│   └── order.py            # Order + order_items model
+├── services/
+│   ├── user_service.py     # User business logic
+│   ├── auth_service.py     # Login/refresh logic
+│   ├── category_service.py # Category business logic
+│   ├── product_service.py  # Product business logic
+│   └── order_service.py    # Order business logic
+├── controllers/
+│   ├── home_controller.py  # / and /warmup routes
+│   ├── user_controller.py  # /users routes
+│   ├── auth_controller.py  # /auth routes
+│   ├── category_controller.py
+│   ├── product_controller.py
+│   └── order_controller.py # /orders and /orders/<id>/items routes
+├── migrations/             # Alembic migration files
+├── tests/                  # Test files
+└── requirements.txt        # Python dependencies
 ```
 
-## Diagram relasi (ERD)
+## How to Run Locally
 
-![RevoShop ERD](docs/erd.png)
+### Prerequisites
 
-```mermaid
-erDiagram
-    users      ||--o{ orders      : "membuat"
-    categories ||--o{ products    : "mengelompokkan"
-    orders     ||--o{ order_items : "berisi"
-    products   ||--o{ order_items : "muncul di"
+- Python 3.12+
+- PostgreSQL running on localhost:5432
+
+### Setup
+
+```bash
+# 1. Clone the repository
+git clone <repository-url>
+cd revoushop-db
+
+# 2. Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Create .env file (copy from example)
+cp .env.example .env
+# Edit .env with your PostgreSQL credentials
+
+# 5. Create the database
+psql -U postgres -c "CREATE DATABASE revoushop_db;"
+
+# 6. Run migrations
+flask db upgrade
+
+# 7. (Optional) Seed sample data
+psql -U postgres -d revoushop_db -f Seed.sql
+
+# 8. Run the application
+flask run --port 5001
 ```
 
-`orders` dan `products` berelasi **many-to-many**: satu order bisa berisi banyak produk,
-dan satu produk bisa muncul di banyak order. Relasi itu diselesaikan oleh `order_items`,
-yang menyimpan `order_id` dan `product_id` sebagai foreign key beserta jumlah dan harga
-satuan saat transaksi terjadi.
+### Environment Variables (.env)
 
-## Ringkasan skema
-
-| Tabel         | Primary key     | Foreign key                                        | Fungsi                                |
-| ------------- | --------------- | -------------------------------------------------- | ------------------------------------- |
-| `users`       | `user_id`       | —                                                   | Akun pelanggan                        |
-| `categories`  | `category_id`   | —                                                   | Kategori produk                       |
-| `products`    | `product_id`    | `category_id` → `categories`                        | Barang yang dijual                    |
-| `orders`      | `order_id`      | `user_id` → `users`                                 | Pesanan yang dibuat pengguna          |
-| `order_items` | `order_item_id` | `order_id` → `orders`, `product_id` → `products`    | Tabel penghubung: rincian tiap pesanan |
-
-Konvensi penamaan: `snake_case` di seluruh skema, nama tabel dalam bentuk jamak, primary
-key bernama `<nama_tabel_tunggal>_id`, foreign key memakai nama kolom yang dirujuk, kolom
-waktu berakhiran `_at`, dan nilai uang disimpan sebagai `numeric(12,2)` — bukan tipe
-floating point. Seluruh harga dalam Rupiah.
-
-Nilai `order_status` yang diizinkan: `Pending`, `Paid`, `Shipped`, `Delivered`,
-`Cancelled`, `Return Process`. Dibatasi oleh constraint `chk_orders_status`.
-
----
-
-## 1. Prasyarat
-
-* PostgreSQL **14 atau lebih baru** (diuji pada PostgreSQL 16)
-* DBeaver (atau pgAdmin 4)
-* Git
-* PowerShell — sudah tersedia bawaan di Windows
-
-## 2. Instalasi PostgreSQL & password postgres
-
-Unduh installer dari <https://www.postgresql.org/download/windows/>, jalankan, dan biarkan
-pengaturan default (port `5432`). Pastikan komponen **Command Line Tools** ikut tercentang.
-
-Saat instalasi, kamu akan diminta membuat **password untuk superuser `postgres`**. Catat
-password ini — semua langkah berikutnya membutuhkannya.
-
-Jika `psql` belum dikenali di PowerShell, tambahkan foldernya ke PATH:
-
-```powershell
-$env:Path += ";C:\Program Files\PostgreSQL\16\bin"
+```
+DATABASE_URL=postgresql://postgres:your_password@localhost:5432/revoushop_db
+SECRET_KEY=your-secret-key
+JWT_SECRET_KEY=your-jwt-secret
+FLASK_DEBUG=True
 ```
 
-Perintah di atas hanya berlaku untuk sesi PowerShell yang sedang terbuka. Untuk permanen,
-tambahkan lewat **Settings → System → About → Advanced system settings → Environment
-Variables**.
+## API Endpoints
 
-## 3. Verifikasi instalasi
+### Public (no auth required)
 
-```powershell
-psql --version
-# psql (PostgreSQL) 16.x
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Home / health check |
+| GET | `/warmup` | Hardcoded sample data |
+| GET | `/warmup/products` | Hardcoded product list |
+| GET | `/warmup/products/<id>` | Hardcoded product by ID |
+| GET | `/users` | List all users |
+| GET | `/users/<id>` | Get user by ID |
+| POST | `/users` | Register new user |
+| GET | `/categories` | List all categories |
+| GET | `/categories/<id>` | Get category with products |
+| GET | `/products` | List products (paginated) |
+| GET | `/products/<id>` | Get product by ID |
 
-psql -U postgres -h localhost -c "SELECT version();"
-```
+### Auth
 
-Perintah kedua akan meminta password `postgres`. Jika versi PostgreSQL tampil, berarti
-server sudah berjalan dan kredensialmu benar.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/login` | Login, get access + refresh token |
+| POST | `/auth/refresh` | Refresh access token |
 
-## 4. Membuat database revoshop_db
+### Protected (JWT required)
 
-**Lewat DBeaver**
+| Method | Endpoint | Role | Description |
+|--------|----------|------|-------------|
+| POST | `/categories` | Admin | Create category |
+| PUT | `/categories/<id>` | Admin | Update category |
+| DELETE | `/categories/<id>` | Admin | Soft delete category |
+| POST | `/products` | Admin | Create product |
+| PUT | `/products/<id>` | Admin | Update product |
+| DELETE | `/products/<id>` | Admin | Soft delete product |
+| GET | `/orders` | Any | List user's orders |
+| GET | `/orders/<id>` | Any | Get order with items |
+| POST | `/orders` | Any | Create order |
+| PUT | `/orders/<id>` | Any | Update order |
+| DELETE | `/orders/<id>` | Any | Soft delete order |
+| GET | `/orders/<id>/items` | Any | Get order items |
 
-1. Buka DBeaver → **Database → New Database Connection → PostgreSQL**.
-2. Isi Host `localhost`, Port `5432`, Database `postgres`, Username `postgres`, lalu
-   masukkan password. Klik **Test Connection**, kemudian **Finish**.
-3. Pada panel Database Navigator, klik kanan koneksi **postgres → Create → Database**.
-4. Isi nama `revoshop_db`, klik **OK**.
-5. Klik kanan koneksi → **Refresh** (F5). Pastikan `revoshop_db` muncul di daftar database.
+### Swagger Documentation
 
-**Lewat PowerShell**
+Visit `http://127.0.0.1:5001/apidocs/` when the server is running.
 
-```powershell
-createdb -U postgres revoshop_db
-```
+## Screenshots
 
-## 5. Menjalankan Schema.sql dan Seed.sql
+### Postman Requests
 
-Clone repositori terlebih dahulu:
+> Screenshots of Postman requests for GET, POST, PUT, DELETE operations are stored in the `docs/` folder.
 
-```powershell
-git clone https://github.com/<username-kamu>/revoshop-db.git
-cd revoshop-db
-```
+### Database Tables (DBeaver/pgAdmin)
 
-**Opsi A — PowerShell**
+> Screenshot showing all tables (users, products, categories, orders, order_items) with their structure is stored in `docs/erd.png`.
 
-```powershell
-psql -U postgres -d revoshop_db -f Schema.sql
-psql -U postgres -d revoshop_db -f Seed.sql
-```
+## ERD (Entity Relationship Diagram)
 
-**Opsi B — DBeaver**
+![ERD](docs/erd.png)
 
-1. Klik `revoshop_db` di Database Navigator agar menjadi database aktif.
-2. **File → Open File**, pilih `Schema.sql`.
-3. Jalankan seluruh isi file dengan **Execute script** (`Alt+X`) — bukan `Ctrl+Enter`,
-   karena `Ctrl+Enter` hanya menjalankan satu perintah tempat kursor berada.
-4. Ulangi langkah 2–3 untuk `Seed.sql`.
-5. Klik kanan `revoshop_db` → **Refresh** (F5) untuk melihat kelima tabel.
+## Database Schema
 
-Urutannya tidak boleh dibalik: `Seed.sql` membutuhkan tabel yang dibuat `Schema.sql`.
-
-Saat menjalankan `Seed.sql`, DBeaver akan menampilkan peringatan
-*"Execute dangerous queries"* karena ada perintah `UPDATE` tanpa `WHERE`. Perintah itu
-memang disengaja — klik **OK**.
-
-## 6. Verifikasi data
-
-```sql
-SELECT 'users' AS tabel, COUNT(*) AS jumlah FROM users
-UNION ALL SELECT 'categories',  COUNT(*) FROM categories
-UNION ALL SELECT 'products',    COUNT(*) FROM products
-UNION ALL SELECT 'orders',      COUNT(*) FROM orders
-UNION ALL SELECT 'order_items', COUNT(*) FROM order_items;
-```
-
-Hasil yang diharapkan: 8 users, 6 categories, 23 products, 12 orders, 30 order_items.
-
-Untuk memastikan foreign key terpasang benar:
-
-```sql
-SELECT tc.table_name, kcu.column_name, ccu.table_name AS mereferensi
-FROM information_schema.table_constraints tc
-JOIN information_schema.key_column_usage kcu
-     ON tc.constraint_name = kcu.constraint_name
-JOIN information_schema.constraint_column_usage ccu
-     ON tc.constraint_name = ccu.constraint_name
-WHERE tc.constraint_type = 'FOREIGN KEY'
-ORDER BY 1, 2;
-```
-
-Harus muncul empat baris: `products.category_id → categories`, `orders.user_id → users`,
-`order_items.order_id → orders`, dan `order_items.product_id → products`.
-
-Terakhir, pastikan `total_amount` setiap order sama dengan jumlah line item-nya. Query
-berikut harus mengembalikan **0 baris**:
-
-```sql
-SELECT o.order_id, o.total_amount,
-       o.shipping_fee + COALESCE(SUM(oi.line_total), 0) AS hasil_hitung
-FROM orders o
-LEFT JOIN order_items oi ON oi.order_id = o.order_id
-GROUP BY o.order_id, o.total_amount, o.shipping_fee
-HAVING o.total_amount <> o.shipping_fee + COALESCE(SUM(oi.line_total), 0);
-```
-
-## 7. Menjalankan Queries.sql
-
-```powershell
-psql -U postgres -d revoshop_db -f Queries.sql
-```
-
-Di DBeaver, buka `Queries.sql` lalu jalankan per query dengan `Ctrl+Enter` agar hasil tiap
-query terlihat terpisah.
-
-Query pertama adalah kombinasi wajib `WHERE` + `ORDER BY` + `LIMIT` — produk Electronics
-termahal yang stoknya masih ada:
-
-```sql
-select p.product_id, p.product_name, p.sku, p.price, p.stock_quantity
-from products p
-where p.category_id = 1
-  and p.is_active = true
-  and p.stock_quantity > 0
-order by p.price desc
-limit 5;
-```
-
-Ketiga klausa bekerja berurutan dan urutan penulisannya tidak bisa ditukar: `WHERE`
-menyaring baris terlebih dahulu, `ORDER BY` mengurutkan baris yang lolos filter, lalu
-`LIMIT` mengambil sejumlah baris teratas dari hasil pengurutan itu.
-
-Query lainnya mencakup join antar tabel melalui tabel penghubung, daftar produk beserta
-kategorinya, rincian isi pesanan, dan produk terlaris.
-
-## Reset database
-
-```powershell
-psql -U postgres -d revoshop_db -f Schema.sql   # hapus dan buat ulang semua tabel
-psql -U postgres -d revoshop_db -f Seed.sql     # muat ulang data contoh
-```
-
-`Schema.sql` diawali perintah `DROP TABLE IF EXISTS ... CASCADE`, sehingga aman dijalankan
-berulang kali. Namun `Seed.sql` **harus dijalankan setelah `Schema.sql`** — menjalankan
-`Seed.sql` dua kali tanpa reset akan gagal dengan error
-`duplicate key value violates unique constraint`, karena `email`, `category_name`, dan
-`sku` bersifat unik.
-
-Untuk menghapus seluruh database:
-
-```powershell
-dropdb -U postgres revoshop_db
-```
-
----
-
-## Keputusan desain
-
-* **`numeric(12,2)` untuk nilai uang.** Tipe `float` menyimpan angka secara biner sehingga
-  menimbulkan galat pembulatan yang tidak dapat ditoleransi untuk transaksi.
-* **`order_items.unit_price` disimpan, bukan diambil dari `products`.** Harga bisa berubah
-  sewaktu-waktu, sedangkan sebuah pesanan harus menyimpan harga yang benar-benar dibayar
-  pelanggan. Contohnya order #1 membeli Keychron K2 seharga 1.199.000 (harga promo),
-  padahal harga sekarang 1.299.000.
-* **`line_total` diisi lewat `UPDATE` di `Seed.sql`** (`quantity * unit_price`), lalu
-  `total_amount` dihitung dari akumulasi `line_total` ditambah `shipping_fee`. Dengan cara
-  ini tidak ada angka total yang perlu diketik manual.
-* **Pilihan `ON DELETE` dibuat berbeda per relasi.** `order_items` memakai `CASCADE` dari
-  `orders`, karena rincian pesanan tidak bermakna tanpa pesanannya. Sebaliknya `users`,
-  `products`, dan `categories` memakai `RESTRICT` agar riwayat transaksi tidak ikut
-  terhapus.
-* **Constraint `CHECK`** menjaga harga dan stok tidak negatif, jumlah pembelian minimal 1,
-  serta membatasi `order_status` pada enam nilai yang valid.
-* **Penamaan disiapkan untuk SQLAlchemy.** Kolom `snake_case` dan primary key
-  `<tabel>_id` akan langsung memetakan ke model ORM pada Checkpoint 2.
+- **users** — user_id, username, full_name, role, email, password_hash, is_active, created_at, deleted_at
+- **categories** — category_id, category_name, description, created_at, deleted_at
+- **products** — product_id, category_id (FK), product_name, sku, description, price, stock_quantity, is_active, created_at, deleted_at
+- **orders** — order_id, user_id (FK), order_status, shipping_address, shipping_fee, total_amount, ordered_at, deleted_at
+- **order_items** — order_item_id, order_id (FK), product_id (FK), quantity, unit_price, line_total
