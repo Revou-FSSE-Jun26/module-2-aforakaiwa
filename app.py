@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
+from flasgger import Swagger
 
 from config import Config
 from utils import db
@@ -24,6 +25,7 @@ def create_app():
     db.init_app(app)
     Migrate(app, db)
     JWTManager(app)
+    Swagger(app)
 
     # Register blueprints
     app.register_blueprint(home_bp)

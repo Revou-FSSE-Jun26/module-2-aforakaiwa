@@ -1,8 +1,9 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
+from flask_jwt_extended import create_access_token, create_refresh_token, get_jwt_identity, jwt_required
 from sqlalchemy.exc import IntegrityError
 from utils import db
 from models import User, Category, Product, Order, order_items
+from auth import roles_required
 
 ACTIVE_ORDER_STATUSES = ("Pending", "Paid", "Shipped", "Return Process")
 
@@ -13,6 +14,15 @@ home_bp = Blueprint("home", __name__)
 
 @home_bp.route("/")
 def home():
+    """
+    Home endpoint
+    ---
+    tags:
+      - Home
+    responses:
+      200:
+        description: Welcome message
+    """
     return jsonify({"message": "Welcome to the Revou Shop", "status": "ok"})
 
 
@@ -22,7 +32,15 @@ warmup_bp = Blueprint("warmup", __name__, url_prefix="/warmup")
 
 @warmup_bp.route("", methods=["GET"])
 def warmup():
-    """Returns hardcoded sample data based on Seed.sql for testing without DB."""
+    """
+    Get all hardcoded sample data
+    ---
+    tags:
+      - Warmup
+    responses:
+      200:
+        description: Hardcoded sample data (users, categories, products, orders, order_items)
+    """
     data = {
         "users": [
             {"user_id": 1, "username": "andi_pratama", "full_name": "Andi Pratama", "role": "Customer", "email": "andi.pratama@gmail.com", "is_active": True, "created_at": "2025-11-03T09:12:00"},
@@ -117,21 +135,145 @@ def warmup():
     return jsonify(data)
 
 
+@warmup_bp.route("/products", methods=["GET"])
+def warmup_products():
+    """
+    Get all hardcoded products
+    ---
+    tags:
+      - Warmup
+    responses:
+      200:
+        description: Full list of hardcoded products
+    """
+    products = [
+        {"product_id": 1, "category_id": 1, "product_name": "Logitech MX Master 3S Wireless Mouse", "sku": "ELC-MOU-001", "price": 1450000.00, "stock_quantity": 42, "is_active": True},
+        {"product_id": 2, "category_id": 1, "product_name": "Anker PowerCore 20000mAh Power Bank", "sku": "ELC-PWB-002", "price": 549000.00, "stock_quantity": 130, "is_active": True},
+        {"product_id": 3, "category_id": 1, "product_name": "Samsung 27\" 4K UHD Monitor UR55", "sku": "ELC-MON-003", "price": 3899000.00, "stock_quantity": 15, "is_active": True},
+        {"product_id": 4, "category_id": 1, "product_name": "Keychron K2 Mechanical Keyboard", "sku": "ELC-KEY-004", "price": 1299000.00, "stock_quantity": 25, "is_active": True},
+        {"product_id": 5, "category_id": 1, "product_name": "Sony WH-1000XM5 Headphones", "sku": "ELC-HDP-005", "price": 4999000.00, "stock_quantity": 8, "is_active": True},
+        {"product_id": 6, "category_id": 2, "product_name": "Uniqlo AIRism Cotton T-Shirt", "sku": "FSH-TSH-006", "price": 199000.00, "stock_quantity": 200, "is_active": True},
+        {"product_id": 7, "category_id": 2, "product_name": "Levi's 511 Slim Fit Jeans", "sku": "FSH-JNS-007", "price": 899000.00, "stock_quantity": 60, "is_active": True},
+        {"product_id": 8, "category_id": 2, "product_name": "Eiger Canvas Daypack 25L", "sku": "FSH-BAG-008", "price": 675000.00, "stock_quantity": 35, "is_active": True},
+        {"product_id": 9, "category_id": 2, "product_name": "Adidas Runfalcon 3.0 Sneakers", "sku": "FSH-SHO-009", "price": 799000.00, "stock_quantity": 48, "is_active": True},
+        {"product_id": 10, "category_id": 3, "product_name": "IKEA MARKUS Office Chair", "sku": "HML-CHR-010", "price": 2799000.00, "stock_quantity": 12, "is_active": True},
+        {"product_id": 11, "category_id": 3, "product_name": "Ceramic Coffee Mug Set (4 pcs)", "sku": "HML-MUG-011", "price": 165000.00, "stock_quantity": 90, "is_active": True},
+        {"product_id": 12, "category_id": 3, "product_name": "Philips LED Desk Lamp", "sku": "HML-LMP-012", "price": 349000.00, "stock_quantity": 55, "is_active": True},
+        {"product_id": 13, "category_id": 3, "product_name": "Non-stick Frying Pan 24cm", "sku": "HML-PAN-013", "price": 259000.00, "stock_quantity": 70, "is_active": True},
+        {"product_id": 14, "category_id": 4, "product_name": "Clean Code - Robert C. Martin", "sku": "BKS-BOK-014", "price": 585000.00, "stock_quantity": 20, "is_active": True},
+        {"product_id": 15, "category_id": 4, "product_name": "Designing Data-Intensive Applications", "sku": "BKS-BOK-015", "price": 725000.00, "stock_quantity": 14, "is_active": True},
+        {"product_id": 16, "category_id": 4, "product_name": "Pilot G2 Gel Pen (Box of 12)", "sku": "BKS-PEN-016", "price": 132000.00, "stock_quantity": 150, "is_active": True},
+        {"product_id": 17, "category_id": 4, "product_name": "A5 Hardcover Dotted Notebook", "sku": "BKS-NTB-017", "price": 89000.00, "stock_quantity": 110, "is_active": True},
+        {"product_id": 18, "category_id": 5, "product_name": "Yoga Mat TPE 6mm", "sku": "SPT-YGM-018", "price": 245000.00, "stock_quantity": 65, "is_active": True},
+        {"product_id": 19, "category_id": 5, "product_name": "Adjustable Dumbbell 10kg", "sku": "SPT-DMB-019", "price": 615000.00, "stock_quantity": 22, "is_active": True},
+        {"product_id": 20, "category_id": 5, "product_name": "Stainless Steel Water Bottle 1L", "sku": "SPT-BTL-020", "price": 175000.00, "stock_quantity": 95, "is_active": True},
+        {"product_id": 21, "category_id": 6, "product_name": "Wardah UV Shield Sunscreen SPF 35", "sku": "HBT-SUN-021", "price": 45000.00, "stock_quantity": 180, "is_active": True},
+        {"product_id": 22, "category_id": 6, "product_name": "Sensodyne Repair & Protect 100g", "sku": "HBT-TPT-022", "price": 32000.00, "stock_quantity": 0, "is_active": True},
+        {"product_id": 23, "category_id": 6, "product_name": "Somethinc Niacinamide 10% Serum", "sku": "HBT-SRM-023", "price": 149000.00, "stock_quantity": 40, "is_active": False},
+    ]
+    return jsonify(products)
+
+
+@warmup_bp.route("/products/<int:product_id>", methods=["GET"])
+def warmup_product(product_id):
+    """
+    Get a single hardcoded product by ID
+    ---
+    tags:
+      - Warmup
+    parameters:
+      - name: product_id
+        in: path
+        type: integer
+        required: true
+        description: Product ID
+    responses:
+      200:
+        description: Product found
+      404:
+        description: Product not found
+    """
+    products = [
+        {"product_id": 1, "category_id": 1, "product_name": "Logitech MX Master 3S Wireless Mouse", "sku": "ELC-MOU-001", "price": 1450000.00, "stock_quantity": 42, "is_active": True},
+        {"product_id": 2, "category_id": 1, "product_name": "Anker PowerCore 20000mAh Power Bank", "sku": "ELC-PWB-002", "price": 549000.00, "stock_quantity": 130, "is_active": True},
+        {"product_id": 3, "category_id": 1, "product_name": "Samsung 27\" 4K UHD Monitor UR55", "sku": "ELC-MON-003", "price": 3899000.00, "stock_quantity": 15, "is_active": True},
+        {"product_id": 4, "category_id": 1, "product_name": "Keychron K2 Mechanical Keyboard", "sku": "ELC-KEY-004", "price": 1299000.00, "stock_quantity": 25, "is_active": True},
+        {"product_id": 5, "category_id": 1, "product_name": "Sony WH-1000XM5 Headphones", "sku": "ELC-HDP-005", "price": 4999000.00, "stock_quantity": 8, "is_active": True},
+        {"product_id": 6, "category_id": 2, "product_name": "Uniqlo AIRism Cotton T-Shirt", "sku": "FSH-TSH-006", "price": 199000.00, "stock_quantity": 200, "is_active": True},
+        {"product_id": 7, "category_id": 2, "product_name": "Levi's 511 Slim Fit Jeans", "sku": "FSH-JNS-007", "price": 899000.00, "stock_quantity": 60, "is_active": True},
+        {"product_id": 8, "category_id": 2, "product_name": "Eiger Canvas Daypack 25L", "sku": "FSH-BAG-008", "price": 675000.00, "stock_quantity": 35, "is_active": True},
+        {"product_id": 9, "category_id": 2, "product_name": "Adidas Runfalcon 3.0 Sneakers", "sku": "FSH-SHO-009", "price": 799000.00, "stock_quantity": 48, "is_active": True},
+        {"product_id": 10, "category_id": 3, "product_name": "IKEA MARKUS Office Chair", "sku": "HML-CHR-010", "price": 2799000.00, "stock_quantity": 12, "is_active": True},
+        {"product_id": 11, "category_id": 3, "product_name": "Ceramic Coffee Mug Set (4 pcs)", "sku": "HML-MUG-011", "price": 165000.00, "stock_quantity": 90, "is_active": True},
+        {"product_id": 12, "category_id": 3, "product_name": "Philips LED Desk Lamp", "sku": "HML-LMP-012", "price": 349000.00, "stock_quantity": 55, "is_active": True},
+        {"product_id": 13, "category_id": 3, "product_name": "Non-stick Frying Pan 24cm", "sku": "HML-PAN-013", "price": 259000.00, "stock_quantity": 70, "is_active": True},
+        {"product_id": 14, "category_id": 4, "product_name": "Clean Code - Robert C. Martin", "sku": "BKS-BOK-014", "price": 585000.00, "stock_quantity": 20, "is_active": True},
+        {"product_id": 15, "category_id": 4, "product_name": "Designing Data-Intensive Applications", "sku": "BKS-BOK-015", "price": 725000.00, "stock_quantity": 14, "is_active": True},
+        {"product_id": 16, "category_id": 4, "product_name": "Pilot G2 Gel Pen (Box of 12)", "sku": "BKS-PEN-016", "price": 132000.00, "stock_quantity": 150, "is_active": True},
+        {"product_id": 17, "category_id": 4, "product_name": "A5 Hardcover Dotted Notebook", "sku": "BKS-NTB-017", "price": 89000.00, "stock_quantity": 110, "is_active": True},
+        {"product_id": 18, "category_id": 5, "product_name": "Yoga Mat TPE 6mm", "sku": "SPT-YGM-018", "price": 245000.00, "stock_quantity": 65, "is_active": True},
+        {"product_id": 19, "category_id": 5, "product_name": "Adjustable Dumbbell 10kg", "sku": "SPT-DMB-019", "price": 615000.00, "stock_quantity": 22, "is_active": True},
+        {"product_id": 20, "category_id": 5, "product_name": "Stainless Steel Water Bottle 1L", "sku": "SPT-BTL-020", "price": 175000.00, "stock_quantity": 95, "is_active": True},
+        {"product_id": 21, "category_id": 6, "product_name": "Wardah UV Shield Sunscreen SPF 35", "sku": "HBT-SUN-021", "price": 45000.00, "stock_quantity": 180, "is_active": True},
+        {"product_id": 22, "category_id": 6, "product_name": "Sensodyne Repair & Protect 100g", "sku": "HBT-TPT-022", "price": 32000.00, "stock_quantity": 0, "is_active": True},
+        {"product_id": 23, "category_id": 6, "product_name": "Somethinc Niacinamide 10% Serum", "sku": "HBT-SRM-023", "price": 149000.00, "stock_quantity": 40, "is_active": False},
+    ]
+    product = None
+    for product in products:
+        if product["product_id"] == product_id:
+            break
+    else:
+        product = None
+    if product is None:
+        return jsonify({"error": "Product not found"}), 404
+    return jsonify(product)
+
+
 # ---------- Users ----------
 users_bp = Blueprint("users", __name__, url_prefix="/users")
 
 
 @users_bp.route("", methods=["GET"])
 def get_users():
+    """
+    Get all users
+    ---
+    tags:
+      - Users
+    responses:
+      200:
+        description: List of all users
+      500:
+        description: Internal server error
+    """
     try:
         users = User.query.all()
-        return jsonify([u.to_dict() for u in users])
+        return jsonify([user.to_dict() for user in users])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 @users_bp.route("/<int:user_id>", methods=["GET"])
 def get_user(user_id):
+    """
+    Get a user by ID
+    ---
+    tags:
+      - Users
+    parameters:
+      - name: user_id
+        in: path
+        type: integer
+        required: true
+        description: User ID
+    responses:
+      200:
+        description: User found
+      404:
+        description: User not found
+      500:
+        description: Internal server error
+    """
     try:
         user = db.get_or_404(User, user_id)
         return jsonify(user.to_dict())
@@ -141,6 +283,48 @@ def get_user(user_id):
 
 @users_bp.route("", methods=["POST"])
 def create_user():
+    """
+    Register a new user
+    ---
+    tags:
+      - Users
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - username
+            - full_name
+            - email
+            - password
+          properties:
+            username:
+              type: string
+              example: john_doe
+            full_name:
+              type: string
+              example: John Doe
+            email:
+              type: string
+              example: john@example.com
+            password:
+              type: string
+              example: securepass123
+            role:
+              type: string
+              example: Customer
+    responses:
+      201:
+        description: User registered successfully
+      400:
+        description: Missing required field or invalid password
+      409:
+        description: Username or email already exists
+      500:
+        description: Internal server error
+    """
     try:
         data = request.get_json(silent=True)
         if not data or not data.get('username') or not data.get('full_name') or not data.get('email') or not data.get('password'):
@@ -171,6 +355,41 @@ def create_user():
 
 @users_bp.route("/<int:user_id>", methods=["PUT"])
 def update_user(user_id):
+    """
+    Update a user
+    ---
+    tags:
+      - Users
+    parameters:
+      - name: user_id
+        in: path
+        type: integer
+        required: true
+        description: User ID
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            username:
+              type: string
+            full_name:
+              type: string
+            role:
+              type: string
+            email:
+              type: string
+            is_active:
+              type: boolean
+    responses:
+      200:
+        description: User updated
+      409:
+        description: Email already exists
+      500:
+        description: Internal server error
+    """
     try:
         user = db.get_or_404(User, user_id)
         data = request.get_json()
@@ -192,6 +411,25 @@ def update_user(user_id):
 
 @users_bp.route("/<int:user_id>", methods=["DELETE"])
 def delete_user(user_id):
+    """
+    Delete a user
+    ---
+    tags:
+      - Users
+    parameters:
+      - name: user_id
+        in: path
+        type: integer
+        required: true
+        description: User ID
+    responses:
+      200:
+        description: User deleted
+      409:
+        description: Cannot delete user with existing orders
+      500:
+        description: Internal server error
+    """
     try:
         user = db.get_or_404(User, user_id)
         db.session.delete(user)
@@ -211,6 +449,39 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
+    """
+    Login and get JWT token
+    ---
+    tags:
+      - Auth
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+            - password
+          properties:
+            email:
+              type: string
+              example: john@example.com
+            password:
+              type: string
+              example: securepass123
+    responses:
+      200:
+        description: Login successful, returns access token
+      400:
+        description: Missing required field
+      401:
+        description: Invalid email or password
+      403:
+        description: Account deactivated
+      500:
+        description: Internal server error
+    """
     try:
         data = request.get_json(silent=True)
         if not data or not data.get("email") or not data.get("password"):
@@ -223,14 +494,51 @@ def login():
         if not user.is_active:
             return jsonify({"error": "This account has been deactivated"}), 403
 
-        access_token = create_access_token(identity=str(user.user_id))
+        access_token = create_access_token(
+            identity=str(user.user_id),
+            additional_claims={"role": user.role}
+        )
+        refresh_token = create_refresh_token(
+            identity=str(user.user_id),
+            additional_claims={"role": user.role}
+        )
         return jsonify({
             "message": "Login successful",
             "access_token": access_token,
+            "refresh_token": refresh_token,
             "user": user.to_dict(),
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@auth_bp.route("/refresh", methods=["POST"])
+@jwt_required(refresh=True)
+def refresh():
+    """
+    Refresh access token using a refresh token
+    ---
+    tags:
+      - Auth
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: New access token generated
+      401:
+        description: Invalid or expired refresh token
+    """
+    current_user_id = get_jwt_identity()
+    user = db.session.get(User, int(current_user_id))
+    if user is None:
+        return jsonify({"error": "User not found"}), 401
+
+    new_access_token = create_access_token(
+        identity=current_user_id,
+        additional_claims={"role": user.role},
+        fresh=False
+    )
+    return jsonify({"access_token": new_access_token}), 200
 
 
 # ---------- Categories ----------
@@ -239,32 +547,95 @@ categories_bp = Blueprint("categories", __name__, url_prefix="/categories")
 
 @categories_bp.route("", methods=["GET"])
 def get_categories():
+    """
+    Get all categories
+    ---
+    tags:
+      - Categories
+    responses:
+      200:
+        description: List of all categories
+      500:
+        description: Internal server error
+    """
     try:
         categories = Category.query.all()
-        return jsonify([c.to_dict() for c in categories])
+        return jsonify([category.to_dict() for category in categories])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 @categories_bp.route("/<int:category_id>", methods=["GET"])
 def get_category(category_id):
+    """
+    Get a category by ID with its products
+    ---
+    tags:
+      - Categories
+    parameters:
+      - name: category_id
+        in: path
+        type: integer
+        required: true
+        description: Category ID
+    responses:
+      200:
+        description: Category found with products
+      404:
+        description: Category not found
+      500:
+        description: Internal server error
+    """
     try:
         category = db.get_or_404(Category, category_id)
         result = category.to_dict()
-        result["products"] = [p.to_dict() for p in category.products]
+        result["products"] = [product.to_dict() for product in category.products]
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 @categories_bp.route("", methods=["POST"])
-@jwt_required()
+@roles_required("Admin")
 def create_category():
+    """
+    Create a new category (requires JWT)
+    ---
+    tags:
+      - Categories
+    security:
+      - Bearer: []
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - category_name
+            - description
+          properties:
+            category_name:
+              type: string
+              example: Electronics
+            description:
+              type: string
+              example: Gadgets and peripherals
+    responses:
+      201:
+        description: Category created
+      400:
+        description: Missing required field
+      409:
+        description: Category name already exists
+      500:
+        description: Internal server error
+    """
     try:
         data = request.get_json()
         if not data or not data.get('category_name') or not data.get('description'):
             return jsonify({"error": "Missing required field"}), 400
-        
+
         category = Category(
             category_name=data["category_name"],
             description=data.get("description"),
@@ -281,8 +652,39 @@ def create_category():
 
 
 @categories_bp.route("/<int:category_id>", methods=["PUT"])
-@jwt_required()
+@roles_required("Admin")
 def update_category(category_id):
+    """
+    Update a category (requires JWT)
+    ---
+    tags:
+      - Categories
+    security:
+      - Bearer: []
+    parameters:
+      - name: category_id
+        in: path
+        type: integer
+        required: true
+        description: Category ID
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            category_name:
+              type: string
+            description:
+              type: string
+    responses:
+      200:
+        description: Category updated
+      409:
+        description: Category name already exists
+      500:
+        description: Internal server error
+    """
     try:
         category = db.get_or_404(Category, category_id)
         data = request.get_json()
@@ -300,8 +702,29 @@ def update_category(category_id):
 
 
 @categories_bp.route("/<int:category_id>", methods=["DELETE"])
-@jwt_required()
+@roles_required("Admin")
 def delete_category(category_id):
+    """
+    Delete a category (requires JWT)
+    ---
+    tags:
+      - Categories
+    security:
+      - Bearer: []
+    parameters:
+      - name: category_id
+        in: path
+        type: integer
+        required: true
+        description: Category ID
+    responses:
+      200:
+        description: Category deleted
+      409:
+        description: Cannot delete category with existing products
+      500:
+        description: Internal server error
+    """
     try:
         category = db.get_or_404(Category, category_id)
         db.session.delete(category)
@@ -321,58 +744,170 @@ products_bp = Blueprint("products", __name__, url_prefix="/products")
 
 @products_bp.route("", methods=["GET"])
 def get_products():
+    """
+    Get all products with pagination
+    ---
+    tags:
+      - Products
+    parameters:
+      - name: page
+        in: query
+        type: integer
+        default: 1
+        description: Page number
+      - name: per_page
+        in: query
+        type: integer
+        default: 5
+        description: Items per page
+    responses:
+      200:
+        description: Paginated list of products
+      500:
+        description: Internal server error
+    """
     try:
-        products = Product.query.all()
-        return jsonify([p.to_dict() for p in products])
+        page = request.args.get("page", 1, type=int)
+        per_page = request.args.get("per_page", 5, type=int)
+
+        pagination = Product.query.paginate(page=page, per_page=per_page, error_out=False)
+
+        return jsonify({
+            "products": [product.to_dict() for product in pagination.items],
+            "page": pagination.page,
+            "per_page": pagination.per_page,
+            "total_pages": pagination.pages,
+            "total_items": pagination.total,
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 @products_bp.route("/<int:product_id>", methods=["GET"])
 def get_product(product_id):
+    """
+    Get a product by ID
+    ---
+    tags:
+      - Products
+    parameters:
+      - name: product_id
+        in: path
+        type: integer
+        required: true
+        description: Product ID
+    responses:
+      200:
+        description: Product found
+      404:
+        description: Product not found
+      500:
+        description: Internal server error
+    """
     try:
-        product = db.get_or_404(Product, product_id)
+        product = db.session.get(Product, product_id)
+        if product is None:
+            return jsonify({"error": f"Product {product_id} not found"}), 404
         return jsonify(product.to_dict())
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 def validate_product_payload(data, partial=False):
-    """Returns an error message string, or None if the payload is valid.
-    When partial=True (PUT), only fields present in the payload are checked."""
+    """Returns a tuple (error_message, status_code), or None if the payload is valid.
+    When partial=True (PUT), only fields present in the payload are checked.
+    - 400 for missing fields, wrong type (non-numeric price, non-integer stock, boolean as price)
+    - 422 for range violations (negative price, negative stock, empty name, name > 100 chars)
+    """
     required_fields = ["category_id", "product_name", "sku", "price"]
     if not partial:
         for field in required_fields:
             if data.get(field) in (None, ""):
-                return f"Missing required field: {field}"
+                return (f"Missing required field: {field}", 400)
+
+    if "product_name" in data:
+        name = data["product_name"]
+        if not isinstance(name, str) or not name.strip():
+            return ("product_name must not be empty", 400)
+        if len(name.strip()) > 100:
+            return ("product_name must not exceed 100 characters", 422)
 
     if "category_id" in data and data["category_id"] is not None:
         if not Category.query.get(data["category_id"]):
-            return "category_id does not reference an existing category"
+            return ("category_id does not reference an existing category", 400)
 
     if "sku" in data and data["sku"] is not None:
         if not isinstance(data["sku"], str) or not (1 <= len(data["sku"]) <= 11):
-            return "sku must be a string of at most 11 characters"
+            return ("sku must be a string of at most 11 characters", 400)
 
     if "price" in data and data["price"] is not None:
-        try:
-            price = float(data["price"])
-        except (TypeError, ValueError):
-            return "price must be a number"
+        price = data["price"]
+        if isinstance(price, bool) or not isinstance(price, (int, float)):
+            return ("price must be a number", 400)
         if price < 0:
-            return "price must be greater than or equal to 0"
+            return ("price must be greater than or equal to 0", 422)
 
-    if "stock_quantity" in data and data["stock_quantity"] is not None:
+    if "stock_quantity" in data:
         stock = data["stock_quantity"]
-        if not isinstance(stock, int) or isinstance(stock, bool) or stock < 0:
-            return "stock_quantity must be a non-negative integer"
+        if stock is not None:
+            if isinstance(stock, bool) or not isinstance(stock, int):
+                return ("stock_quantity must be an integer", 400)
+            if stock < 0:
+                return ("stock_quantity must be a non-negative integer", 422)
 
     return None
 
 
 @products_bp.route("", methods=["POST"])
-@jwt_required()
+@roles_required("Admin")
 def create_product():
+    """
+    Create a new product (requires JWT)
+    ---
+    tags:
+      - Products
+    security:
+      - Bearer: []
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - category_id
+            - product_name
+            - sku
+            - price
+          properties:
+            category_id:
+              type: integer
+              example: 1
+            product_name:
+              type: string
+              example: Wireless Mouse
+            sku:
+              type: string
+              example: ELC-MOU-01
+            description:
+              type: string
+              example: A wireless mouse
+            price:
+              type: number
+              example: 350000
+            stock_quantity:
+              type: integer
+              example: 50
+    responses:
+      201:
+        description: Product created
+      400:
+        description: Missing required field or validation error
+      409:
+        description: SKU already exists
+      500:
+        description: Internal server error
+    """
     try:
         data = request.get_json(silent=True)
         if not data:
@@ -380,11 +915,12 @@ def create_product():
 
         error = validate_product_payload(data, partial=False)
         if error:
-            return jsonify({"error": error}), 400
+            message, status_code = error
+            return jsonify({"error": message}), status_code
 
         product = Product(
             category_id=data["category_id"],
-            product_name=data["product_name"],
+            product_name=data["product_name"].strip(),
             sku=data["sku"],
             description=data.get("description"),
             price=data["price"],
@@ -403,19 +939,65 @@ def create_product():
 
 
 @products_bp.route("/<int:product_id>", methods=["PUT"])
-@jwt_required()
+@roles_required("Admin")
 def update_product(product_id):
+    """
+    Update a product (requires JWT)
+    ---
+    tags:
+      - Products
+    security:
+      - Bearer: []
+    parameters:
+      - name: product_id
+        in: path
+        type: integer
+        required: true
+        description: Product ID
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            category_id:
+              type: integer
+            product_name:
+              type: string
+            sku:
+              type: string
+            description:
+              type: string
+            price:
+              type: number
+            stock_quantity:
+              type: integer
+            is_active:
+              type: boolean
+    responses:
+      200:
+        description: Product updated
+      400:
+        description: Validation error
+      409:
+        description: SKU already exists
+      500:
+        description: Internal server error
+    """
     try:
-        product = db.get_or_404(Product, product_id)
+        product = db.session.get(Product, product_id)
+        if product is None:
+            return jsonify({"error": f"Product {product_id} not found"}), 404
         data = request.get_json(silent=True)
         if not data:
             return jsonify({"error": "Missing request body"}), 400
 
         error = validate_product_payload(data, partial=True)
         if error:
-            return jsonify({"error": error}), 400
+            message, status_code = error
+            return jsonify({"error": message}), status_code
 
-        product.product_name = data.get("product_name", product.product_name)
+        product.product_name = data.get("product_name", product.product_name).strip() if "product_name" in data else product.product_name
         product.sku = data.get("sku", product.sku)
         product.description = data.get("description", product.description)
         product.price = data.get("price", product.price)
@@ -424,7 +1006,7 @@ def update_product(product_id):
         product.category_id = data.get("category_id", product.category_id)
         db.session.commit()
         return jsonify({"message": "Product updated",
-                        "product": product.to_dict()})
+                        "product": product.to_dict()}), 200
     except IntegrityError:
         db.session.rollback()
         return jsonify({"error": "SKU already exists or invalid category"}), 409
@@ -434,8 +1016,29 @@ def update_product(product_id):
 
 
 @products_bp.route("/<int:product_id>", methods=["DELETE"])
-@jwt_required()
+@roles_required("Admin")
 def delete_product(product_id):
+    """
+    Delete a product (requires JWT)
+    ---
+    tags:
+      - Products
+    security:
+      - Bearer: []
+    parameters:
+      - name: product_id
+        in: path
+        type: integer
+        required: true
+        description: Product ID
+    responses:
+      200:
+        description: Product deleted
+      409:
+        description: Cannot delete product with active orders
+      500:
+        description: Internal server error
+    """
     try:
         product = db.get_or_404(Product, product_id)
 
@@ -469,6 +1072,19 @@ orders_bp = Blueprint("orders", __name__, url_prefix="/orders")
 @orders_bp.route("", methods=["GET"])
 @jwt_required()
 def get_orders():
+    """
+    Get all orders for the authenticated user (requires JWT)
+    ---
+    tags:
+      - Orders
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: List of user orders
+      500:
+        description: Internal server error
+    """
     try:
         user_id = int(get_jwt_identity())
         orders = (
@@ -476,7 +1092,7 @@ def get_orders():
             .order_by(Order.ordered_at.desc())
             .all()
         )
-        return jsonify([o.to_dict() for o in orders])
+        return jsonify([order.to_dict() for order in orders])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -484,6 +1100,29 @@ def get_orders():
 @orders_bp.route("/<int:order_id>", methods=["GET"])
 @jwt_required()
 def get_order(order_id):
+    """
+    Get a single order by ID with items (requires JWT)
+    ---
+    tags:
+      - Orders
+    security:
+      - Bearer: []
+    parameters:
+      - name: order_id
+        in: path
+        type: integer
+        required: true
+        description: Order ID
+    responses:
+      200:
+        description: Order found with items
+      403:
+        description: Access denied
+      404:
+        description: Order not found
+      500:
+        description: Internal server error
+    """
     try:
         order = db.get_or_404(Order, order_id)
         if order.user_id != int(get_jwt_identity()):
@@ -513,6 +1152,49 @@ def get_order(order_id):
 @orders_bp.route("", methods=["POST"])
 @jwt_required()
 def create_order():
+    """
+    Create a new order (requires JWT)
+    ---
+    tags:
+      - Orders
+    security:
+      - Bearer: []
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - shipping_address
+          properties:
+            shipping_address:
+              type: string
+              example: Jl. Test No. 1, Jakarta
+            shipping_fee:
+              type: number
+              example: 15000
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  product_id:
+                    type: integer
+                    example: 1
+                  quantity:
+                    type: integer
+                    example: 2
+    responses:
+      201:
+        description: Order created successfully
+      400:
+        description: Missing required field or invalid items
+      409:
+        description: Invalid user or product reference
+      500:
+        description: Internal server error
+    """
     try:
         data = request.get_json(silent=True)
         if not data or not data.get("shipping_address"):
@@ -563,6 +1245,44 @@ def create_order():
 @orders_bp.route("/<int:order_id>", methods=["PUT"])
 @jwt_required()
 def update_order(order_id):
+    """
+    Update an order (requires JWT)
+    ---
+    tags:
+      - Orders
+    security:
+      - Bearer: []
+    parameters:
+      - name: order_id
+        in: path
+        type: integer
+        required: true
+        description: Order ID
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            order_status:
+              type: string
+              example: Paid
+            shipping_address:
+              type: string
+            shipping_fee:
+              type: number
+    responses:
+      200:
+        description: Order updated
+      400:
+        description: Cannot change shipping address for shipped/delivered/cancelled orders
+      403:
+        description: Access denied
+      409:
+        description: Invalid order status
+      500:
+        description: Internal server error
+    """
     try:
         order = db.get_or_404(Order, order_id)
         if order.user_id != int(get_jwt_identity()):
@@ -597,6 +1317,29 @@ def update_order(order_id):
 @orders_bp.route("/<int:order_id>", methods=["DELETE"])
 @jwt_required()
 def delete_order(order_id):
+    """
+    Delete an order (requires JWT)
+    ---
+    tags:
+      - Orders
+    security:
+      - Bearer: []
+    parameters:
+      - name: order_id
+        in: path
+        type: integer
+        required: true
+        description: Order ID
+    responses:
+      200:
+        description: Order deleted
+      403:
+        description: Access denied
+      409:
+        description: Cannot delete this order
+      500:
+        description: Internal server error
+    """
     try:
         order = db.get_or_404(Order, order_id)
         if order.user_id != int(get_jwt_identity()):
@@ -620,6 +1363,29 @@ order_items_bp = Blueprint("order_items", __name__, url_prefix="/orders/<int:ord
 @order_items_bp.route("", methods=["GET"])
 @jwt_required()
 def get_order_items(order_id):
+    """
+    Get items for a specific order (requires JWT)
+    ---
+    tags:
+      - Order Items
+    security:
+      - Bearer: []
+    parameters:
+      - name: order_id
+        in: path
+        type: integer
+        required: true
+        description: Order ID
+    responses:
+      200:
+        description: List of order items
+      403:
+        description: Access denied
+      404:
+        description: Order not found
+      500:
+        description: Internal server error
+    """
     try:
         order = db.get_or_404(Order, order_id)
         if order.user_id != int(get_jwt_identity()):
@@ -641,4 +1407,3 @@ def get_order_items(order_id):
         ])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-

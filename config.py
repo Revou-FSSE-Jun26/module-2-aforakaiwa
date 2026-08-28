@@ -7,7 +7,7 @@ load_dotenv()
 
 
 class Config:
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///default.db')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Flask's own secret, used for sessions/cookies.
@@ -17,11 +17,20 @@ class Config:
     # flask-jwt-extended configuration.
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'super-secret-key-change-in-production')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
 
-    # Reserved for future API documentation (flasgger) - not wired up yet.
+    # Flasgger / Swagger UI configuration.
     SWAGGER = {
         'title': 'Simple Shops API',
         'uiversion': 3,
         'version': '1.0.0',
         'description': 'A simple shop API with products, users, and orders',
+        'securityDefinitions': {
+            'Bearer': {
+                'type': 'apiKey',
+                'name': 'Authorization',
+                'in': 'header',
+                'description': 'JWT Authorization header. Example: "Bearer {token}"'
+            }
+        },
     }
