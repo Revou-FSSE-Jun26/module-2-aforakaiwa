@@ -162,17 +162,33 @@ Visit `http://127.0.0.1:5001/apidocs/` when the server is running.
 
 ### Postman Requests
 
-**POST User:**
+**GET — List / retrieve products**
 
-![POST User](docs/Postman_POST_User.png)
+![GET Product](docs/Postman_GET_product.png)
 
-**POST Category:**
+![GET Product by ID](docs/Postman_GET_product_2.png)
+
+**POST — Register user, login, create category & product**
+
+![POST User](docs/Postman_POST_user.png)
+
+![POST Auth (Login)](docs/Postman_POST_auth.png)
 
 ![POST Category](docs/Postman_POST_Category.png)
 
-**POST Products:**
-
 ![POST Products](docs/Postman_POST_Products.png)
+
+**PUT — Update category & product**
+
+![PUT Category](docs/Postman_PUT_categories.png)
+
+![PUT Product](docs/Postman_PUT_product.png)
+
+**DELETE — Soft delete category & product**
+
+![DELETE Category](docs/Postman_DELETE_categories.png)
+
+![DELETE Product](docs/Postman_DELETE_product.png)
 
 ### Database Tables (DBeaver)
 
@@ -187,6 +203,20 @@ Visit `http://127.0.0.1:5001/apidocs/` when the server is running.
 **Flask DB Migration History:**
 
 ![Migration History](docs/full_flask_db_history.png)
+
+### Load Testing (Locust)
+
+**50 users:**
+
+![Locust 50 users](docs/Locust-50%20users.png)
+
+**200 users — Statistics:**
+
+![Locust 200 users statistics](docs/Locust-200%20users%20statistics.png)
+
+**200 users — Charts:**
+
+![Locust 200 users chart](docs/Locust-200%20users%20chart.png)
 
 ### Commit History
 
