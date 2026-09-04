@@ -217,6 +217,39 @@ pytest tests/test_categories.py -v
 
 ![DELETE Product](docs/Postman_DELETE_product.png)
 
+### Live Production API Testing (Render)
+
+Full CRUD flow tested against the deployed public URL
+`https://revoushop-afo.onrender.com`, confirming the API works end to end in production.
+
+**1. Register user (POST /users):**
+
+![Live POST User](docs/LivePostman_POST_user.png)
+
+**2. Login (POST /auth/login):**
+
+![Live POST Auth](docs/LivePostman_POST_auth.png)
+
+**3. Create category (POST /categories):**
+
+![Live POST Category](docs/LivePostman_POST_Category.png)
+
+**4. Create product (POST /products):**
+
+![Live POST Products](docs/LivePostman_POST_Products.png)
+
+**5. Fetch product (GET /products/&lt;id&gt;):**
+
+![Live GET Product](docs/LivePostman_GET_product_1.png)
+
+**6. Update product (PUT /products/&lt;id&gt;):**
+
+![Live PUT Product](docs/LivePostman_PUT_product.png)
+
+**7. Delete product (DELETE /products/&lt;id&gt;):**
+
+![Live DELETE Product](docs/LivePostman_DELETE_product.png)
+
 ### Database Tables (DBeaver)
 
 **Order Items Association Table:**
