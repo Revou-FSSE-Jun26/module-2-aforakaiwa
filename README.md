@@ -62,7 +62,8 @@ revoushop-db/
 │   └── order_controller.py # /orders and /orders/<id>/items routes
 ├── migrations/             # Alembic migration files
 ├── tests/                  # Test files
-└── requirements.txt        # Python dependencies
+├── requirements.txt        # Production dependencies
+└── requirements-dev.txt    # Dev/test dependencies (pytest, locust)
 ```
 
 ## How to Run Locally
@@ -84,7 +85,10 @@ python3 -m venv venv
 source venv/bin/activate
 
 # 3. Install dependencies
+# Production only:
 pip install -r requirements.txt
+# For development + testing (pytest, locust), use:
+pip install -r requirements-dev.txt
 
 # 4. Create .env file (copy from example)
 cp .env.example .env
