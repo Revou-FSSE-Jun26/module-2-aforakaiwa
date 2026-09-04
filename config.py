@@ -11,11 +11,13 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Flask's own secret, used for sessions/cookies.
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
+    # No default fallback: the app must fail fast if this is not configured.
+    SECRET_KEY = os.environ["SECRET_KEY"]
     DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
 
     # flask-jwt-extended configuration.
-    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'super-secret-key-change-in-production')
+    # No default fallback: forging JWTs must not be possible via a known default.
+    JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
 

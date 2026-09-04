@@ -158,6 +158,21 @@ FLASK_DEBUG=True
 
 Visit `http://127.0.0.1:5001/apidocs/` when the server is running.
 
+## Testing
+
+The test suite uses an in-memory SQLite database, so PostgreSQL is not required to run the tests.
+
+```bash
+# Activate the virtual environment
+source venv/bin/activate
+
+# Run the full test suite
+pytest -v
+
+# Run a single test file
+pytest tests/test_categories.py -v
+```
+
 ## Screenshots
 
 ### Postman Requests
