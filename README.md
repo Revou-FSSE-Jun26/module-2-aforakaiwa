@@ -1,6 +1,12 @@
 # RevoShop API
 
-A RESTful e-commerce backend API built with Flask and PostgreSQL. RevoShop provides a complete product catalog, user management, and order processing system with role-based access control, JWT authentication, and data validation.
+A RESTful e-commerce backend API built with Flask and PostgreSQL. RevoShop is an online store API that manages users, products, categories, orders, and order items through a RESTful interface backed by PostgreSQL. It provides a complete product catalog, user management, and order processing system with role-based access control, JWT authentication, and data validation.
+
+## Live Deployment
+
+- **API base URL:** https://revoushop-afo.onrender.com
+- **Swagger UI:** https://revoushop-afo.onrender.com/apidocs/
+- **Hosted on:** Render (web service + managed PostgreSQL)
 
 ## Features
 
@@ -32,6 +38,8 @@ A RESTful e-commerce backend API built with Flask and PostgreSQL. RevoShop provi
 | pytest | Testing |
 | Locust | Load testing |
 | python-dotenv | Environment variable management |
+| gunicorn | Production WSGI server |
+| Render | Deployment platform (hosted API + PostgreSQL) |
 
 ## Project Structure
 
@@ -222,6 +230,13 @@ pytest tests/test_categories.py -v
 **Flask DB Migration History:**
 
 ![Migration History](docs/full_flask_db_history.png)
+
+### Hosted Database (Production)
+
+Screenshot of the live PostgreSQL instance on Render showing all tables in production
+(connect DBeaver to the Render External Database URL, or view via Render dashboard):
+
+![Production Database Tables](docs/production_db_tables.png)
 
 ### Load Testing (Locust)
 
